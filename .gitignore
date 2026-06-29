@@ -1,0 +1,54 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+backend/venv/
+
+# ===== Node =====
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# ===== Environment =====
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+
+# ===== Database =====
+*.db
+*.sqlite3
+chroma_db/
+backend/chroma_db/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Misc =====
+*.log
+*.pid
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# ===== Docs =====
+Docs/
+docs/

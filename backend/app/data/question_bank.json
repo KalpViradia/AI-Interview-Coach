@@ -1,0 +1,274 @@
+{
+  "questions": [
+    {
+      "text": "Explain the difference between a list and a tuple in Python. When would you use one over the other?",
+      "topic": "Python",
+      "difficulty": 1
+    },
+    {
+      "text": "What are Python decorators and how do they work? Provide an example.",
+      "topic": "Python",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain Python's Global Interpreter Lock (GIL) and its impact on multithreading.",
+      "topic": "Python",
+      "difficulty": 3
+    },
+    {
+      "text": "What are generators in Python? How do they differ from regular functions?",
+      "topic": "Python",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain metaclasses in Python. When would you use one?",
+      "topic": "Python",
+      "difficulty": 4
+    },
+    {
+      "text": "What is the difference between `deepcopy` and `copy` in Python?",
+      "topic": "Python",
+      "difficulty": 2
+    },
+    {
+      "text": "How does Python's garbage collection work? Explain reference counting and the cyclic garbage collector.",
+      "topic": "Python",
+      "difficulty": 4
+    },
+    {
+      "text": "Explain async/await in Python. How does asyncio achieve concurrency?",
+      "topic": "Python",
+      "difficulty": 3
+    },
+    {
+      "text": "What is the difference between INNER JOIN, LEFT JOIN, RIGHT JOIN, and FULL OUTER JOIN?",
+      "topic": "SQL",
+      "difficulty": 1
+    },
+    {
+      "text": "Explain database indexing. What types of indexes exist and when should you use them?",
+      "topic": "SQL",
+      "difficulty": 2
+    },
+    {
+      "text": "What is database normalization? Explain 1NF, 2NF, and 3NF with examples.",
+      "topic": "SQL",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain the difference between clustered and non-clustered indexes.",
+      "topic": "SQL",
+      "difficulty": 3
+    },
+    {
+      "text": "What are database transactions? Explain ACID properties.",
+      "topic": "SQL",
+      "difficulty": 2
+    },
+    {
+      "text": "Write a SQL query to find the second highest salary from an Employee table.",
+      "topic": "SQL",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain query optimization techniques. How would you improve a slow query?",
+      "topic": "SQL",
+      "difficulty": 3
+    },
+    {
+      "text": "What is a deadlock in databases? How can you prevent it?",
+      "topic": "SQL",
+      "difficulty": 3
+    },
+    {
+      "text": "Explain the difference between SQL and NoSQL databases. When would you choose one over the other?",
+      "topic": "SQL",
+      "difficulty": 2
+    },
+    {
+      "text": "What is an Array? Explain the time complexity of common array operations.",
+      "topic": "DSA",
+      "difficulty": 1
+    },
+    {
+      "text": "Explain the difference between a stack and a queue. Give real-world examples of each.",
+      "topic": "DSA",
+      "difficulty": 1
+    },
+    {
+      "text": "What is a hash map? How does it handle collisions?",
+      "topic": "DSA",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain binary search and its time complexity. When can it be applied?",
+      "topic": "DSA",
+      "difficulty": 2
+    },
+    {
+      "text": "What is a binary search tree? Explain insertion, deletion, and search operations.",
+      "topic": "DSA",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain BFS and DFS graph traversal algorithms. When would you use each?",
+      "topic": "DSA",
+      "difficulty": 3
+    },
+    {
+      "text": "What is dynamic programming? Explain it with the Fibonacci sequence example.",
+      "topic": "DSA",
+      "difficulty": 3
+    },
+    {
+      "text": "Explain the merge sort algorithm. What is its time and space complexity?",
+      "topic": "DSA",
+      "difficulty": 2
+    },
+    {
+      "text": "What is a trie? When would you use one over a hash map?",
+      "topic": "DSA",
+      "difficulty": 3
+    },
+    {
+      "text": "Explain Dijkstra's shortest path algorithm. What are its limitations?",
+      "topic": "DSA",
+      "difficulty": 4
+    },
+    {
+      "text": "Design a URL shortening service like bit.ly. Describe the architecture.",
+      "topic": "System Design",
+      "difficulty": 3
+    },
+    {
+      "text": "Design a rate limiter. What algorithms would you use?",
+      "topic": "System Design",
+      "difficulty": 3
+    },
+    {
+      "text": "Design a chat application like WhatsApp. How would you handle real-time messaging?",
+      "topic": "System Design",
+      "difficulty": 4
+    },
+    {
+      "text": "What is horizontal vs vertical scaling? When would you use each?",
+      "topic": "System Design",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain caching strategies. What is the difference between write-through and write-back caching?",
+      "topic": "System Design",
+      "difficulty": 3
+    },
+    {
+      "text": "What is a load balancer? Explain different load balancing algorithms.",
+      "topic": "System Design",
+      "difficulty": 2
+    },
+    {
+      "text": "Design a notification system that can send push, email, and SMS notifications.",
+      "topic": "System Design",
+      "difficulty": 4
+    },
+    {
+      "text": "Explain microservices architecture vs monolithic architecture. What are the tradeoffs?",
+      "topic": "System Design",
+      "difficulty": 3
+    },
+    {
+      "text": "What is REST? Explain RESTful API design principles and best practices.",
+      "topic": "Web Development",
+      "difficulty": 1
+    },
+    {
+      "text": "Explain the difference between authentication and authorization. How would you implement JWT-based auth?",
+      "topic": "Web Development",
+      "difficulty": 2
+    },
+    {
+      "text": "What is CORS? Why does it exist and how do you handle it?",
+      "topic": "Web Development",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain HTTP methods (GET, POST, PUT, PATCH, DELETE) and when to use each.",
+      "topic": "Web Development",
+      "difficulty": 1
+    },
+    {
+      "text": "What is connection pooling? Why is it important in web applications?",
+      "topic": "Web Development",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain the concept of middleware in web frameworks. Give examples of common middleware.",
+      "topic": "Web Development",
+      "difficulty": 2
+    },
+    {
+      "text": "What is WebSocket? How does it differ from HTTP? When would you use it?",
+      "topic": "Web Development",
+      "difficulty": 3
+    },
+    {
+      "text": "Explain the difference between SQL injection and XSS attacks. How do you prevent them?",
+      "topic": "Web Development",
+      "difficulty": 2
+    },
+    {
+      "text": "What are the four pillars of Object-Oriented Programming? Explain with examples.",
+      "topic": "OOP",
+      "difficulty": 1
+    },
+    {
+      "text": "Explain the SOLID principles. Why are they important?",
+      "topic": "OOP",
+      "difficulty": 2
+    },
+    {
+      "text": "What are design patterns? Explain the Singleton, Factory, and Observer patterns.",
+      "topic": "OOP",
+      "difficulty": 3
+    },
+    {
+      "text": "Explain the difference between composition and inheritance. When would you prefer one over the other?",
+      "topic": "OOP",
+      "difficulty": 2
+    },
+    {
+      "text": "What is polymorphism? Explain compile-time vs runtime polymorphism.",
+      "topic": "OOP",
+      "difficulty": 2
+    },
+    {
+      "text": "Tell me about a challenging project you worked on. What was your role and how did you overcome obstacles?",
+      "topic": "Behavioral",
+      "difficulty": 1
+    },
+    {
+      "text": "Describe a time you had a disagreement with a team member. How did you resolve it?",
+      "topic": "Behavioral",
+      "difficulty": 1
+    },
+    {
+      "text": "How do you prioritize tasks when you have multiple deadlines?",
+      "topic": "Behavioral",
+      "difficulty": 1
+    },
+    {
+      "text": "What is Docker? Explain containers vs virtual machines.",
+      "topic": "DevOps",
+      "difficulty": 2
+    },
+    {
+      "text": "Explain CI/CD pipelines. What tools have you used for continuous integration?",
+      "topic": "DevOps",
+      "difficulty": 2
+    },
+    {
+      "text": "What is Git branching strategy? Explain GitFlow or trunk-based development.",
+      "topic": "DevOps",
+      "difficulty": 2
+    }
+  ]
+}

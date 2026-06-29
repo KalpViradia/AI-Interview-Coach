@@ -1,0 +1,4 @@
+# Optional: High-accuracy speech recognition
+# Install only if you plan to use SPEECH_PROVIDER=faster-whisper
+faster-whisper>=1.1.0
+ctranslate2>=4.0.0
