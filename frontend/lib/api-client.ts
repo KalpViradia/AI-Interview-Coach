@@ -159,6 +159,8 @@ export interface SessionStateResponse {
   turn_count: number;
   is_complete: boolean;
   session_type: "ats_check" | "mock_interview" | "general" | "resume_based" | "job_specific";
+  report?: SessionReport;
+  candidate_profile?: CandidateProfile;
 }
 
 export async function getSessionState(sessionId: string): Promise<SessionStateResponse> {

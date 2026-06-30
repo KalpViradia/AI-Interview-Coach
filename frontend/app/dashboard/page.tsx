@@ -231,8 +231,8 @@ const TopicTooltip = ({ active, payload, label }: any) => {
               <div className="flex-1 w-full flex flex-col" style={{ minWidth: 0, minHeight: 0 }}>
                 {scoreData.length > 1 ? (
                   <>
-                    <div className="flex-1">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                    <div className="flex-1 min-h-[200px]">
+                      <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={scoreData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
                           <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />

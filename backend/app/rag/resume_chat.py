@@ -21,7 +21,7 @@ def get_embedder():
         from app.core.config import get_settings
         settings = get_settings()
         _embedder = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-2",
             google_api_key=settings.gemini_api_key
         )
     return _embedder

@@ -384,27 +384,42 @@ async def get_session_state(
         
     state = current_state_tuple.values
     
-    # If authenticated, verify ownership
+    # If authenticated, verify ownership and get DB report fallback
     session_type = "mock_interview"
+    db_report_dict = None
     if current_user:
         session_result = await db.execute(
             select(InterviewSession).where(
                 InterviewSession.id == uuid.UUID(session_id),
                 InterviewSession.user_id == uuid.UUID(current_user.id),
-            )
+            ).options(selectinload(InterviewSession.report))
         )
         db_session = session_result.scalars().first()
         if db_session:
             session_type = db_session.session_type
-        # If authenticated but session not found in DB, it might be a guest session
-        # that was started before login — allow access via LangGraph state
+            if db_session.report:
+                db_report_dict = {
+                    "summary": db_session.report.summary_json.get("summary", ""),
+                    "score": db_session.report.summary_json.get("score", 0.0),
+                    "technical_score": db_session.report.summary_json.get("technical_score", 0.0),
+                    "communication_score": db_session.report.summary_json.get("communication_score", 0.0),
+                    "problem_solving_score": db_session.report.summary_json.get("problem_solving_score", 0.0),
+                    "readiness_label": db_session.report.readiness_label,
+                    "weak_topics": db_session.report.weak_topics_json,
+                    "roadmap": db_session.report.roadmap_json,
+                    "strong_topics": db_session.report.summary_json.get("strong_topics", []),
+                }
     
+    final_report = state.get("report") or db_report_dict
+
     return {
         "session_id": session_id,
         "next_question": state.get("next_question"),
         "turn_count": state.get("turn_count", 0),
-        "is_complete": state.get("report") is not None,
-        "session_type": session_type
+        "is_complete": final_report is not None,
+        "session_type": session_type,
+        "report": final_report,
+        "candidate_profile": state.get("candidate_profile")
     }
 
 @router.get("/sessions/{session_id}/transcript")

@@ -108,3 +108,21 @@ app.include_router(sessions.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(resume_chat.router, prefix="/api")
 app.include_router(resumes.router, prefix="/api")
+
+# Global Exception Handler for Unhandled Exceptions (Fixes CORS on 500)
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": str(exc)},
+        headers=headers
+    )

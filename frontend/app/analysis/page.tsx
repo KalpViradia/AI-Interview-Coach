@@ -26,23 +26,40 @@ function AnalysisContent() {
       return;
     }
 
-    const storedData = sessionStorage.getItem(`session_${sessionId}`);
-    if (storedData) {
-      const parsed = JSON.parse(storedData) as SessionCreateResponse;
-      if (parsed.candidate_profile) {
-        if (!parsed.candidate_profile.ats_breakdown && !isAtsMode) {
+    const loadData = async () => {
+      const storedData = sessionStorage.getItem(`session_${sessionId}`);
+      if (storedData) {
+        const parsed = JSON.parse(storedData) as SessionCreateResponse;
+        if (parsed.candidate_profile) {
+          if (!parsed.candidate_profile.ats_breakdown && !isAtsMode) {
+            router.replace(`/interview?session_id=${sessionId}`);
+            return;
+          }
+          setSessionData(parsed);
+        } else {
           router.replace(`/interview?session_id=${sessionId}`);
-          return;
         }
-        setSessionData(parsed);
       } else {
-        // If there's no candidate profile, maybe it failed or they skipped, jump to interview
-        router.replace(`/interview?session_id=${sessionId}`);
+        try {
+          const { getSessionState } = await import("@/lib/api-client");
+          const sessionState = await getSessionState(sessionId);
+          if (sessionState.candidate_profile) {
+            const data: SessionCreateResponse = {
+              session_id: sessionId,
+              candidate_profile: sessionState.candidate_profile,
+            };
+            setSessionData(data);
+            sessionStorage.setItem(`session_${sessionId}`, JSON.stringify(data));
+          } else {
+            router.replace("/dashboard");
+          }
+        } catch (error) {
+          router.replace("/dashboard");
+        }
       }
-    } else {
-      router.replace("/upload");
-    }
-  }, [sessionId, router]);
+    };
+    loadData();
+  }, [sessionId, router, isAtsMode]);
 
   if (!sessionData || !sessionData.candidate_profile) {
     return (

@@ -83,24 +83,35 @@ async def select_resume_for_chat(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """Start chat using a saved resume from the vault."""
-    resume_id = payload.get("resume_id")
-    if not resume_id:
-        raise HTTPException(status_code=400, detail="resume_id is required")
-        
-    result = await db.execute(
-        select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
-            Resume.user_id == uuid.UUID(current_user.id)
+    try:
+        resume_id = payload.get("resume_id")
+        if not resume_id:
+            raise HTTPException(status_code=400, detail="resume_id is required")
+            
+        try:
+            resume_uuid = uuid.UUID(resume_id)
+            user_uuid = uuid.UUID(current_user.id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid UUID format")
+            
+        result = await db.execute(
+            select(Resume).where(
+                Resume.id == resume_uuid,
+                Resume.user_id == user_uuid
+            )
         )
-    )
-    resume = result.scalars().first()
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        resume = result.scalars().first()
+        if not resume:
+            raise HTTPException(status_code=404, detail="Resume not found")
+            
+        session_id = str(uuid.uuid4())
+        await rag_service.ingest_resume(session_id, resume.raw_text)
         
-    session_id = str(uuid.uuid4())
-    await rag_service.ingest_resume(session_id, resume.raw_text)
-    
-    return {"session_id": session_id, "message": "Resume successfully processed and ready for chat."}
+        return {"session_id": session_id, "message": "Resume successfully processed and ready for chat."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/ask", response_model=AskQueryResponse)
 async def ask_resume_query(request: AskQueryRequest):

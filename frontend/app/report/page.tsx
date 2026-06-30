@@ -8,7 +8,7 @@ import {
   Trophy, Target, Map, ArrowRight, Loader2, 
   BarChart, AlertTriangle, RefreshCcw, Home, CheckCircle, Sparkles, UserPlus
 } from "lucide-react";
-import { SessionReport, getSessionTranscript, TranscriptTurn } from "@/lib/api-client";
+import { SessionReport, getSessionTranscript, getSessionState, TranscriptTurn } from "@/lib/api-client";
 import SidebarLayout from "@/components/SidebarLayout";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -33,9 +33,28 @@ function ReportContent() {
 
     const fetchData = async () => {
       try {
+        let currentReport = null;
         const storedData = sessionStorage.getItem(`report_${sessionId}`);
         if (storedData) {
-          setReport(JSON.parse(storedData));
+          currentReport = JSON.parse(storedData);
+          setReport(currentReport);
+        }
+
+        // If not in sessionStorage, fetch it from backend
+        if (!currentReport) {
+          const sessionState = await getSessionState(sessionId);
+          if (sessionState.report) {
+            setReport(sessionState.report);
+            sessionStorage.setItem(`report_${sessionId}`, JSON.stringify(sessionState.report));
+          } else {
+            // Report doesn't exist (session might not be complete)
+            if (!sessionState.is_complete) {
+              router.replace(`/interview?session_id=${sessionId}`);
+            } else {
+              router.replace("/dashboard");
+            }
+            return;
+          }
         }
 
         const data = await getSessionTranscript(sessionId);
