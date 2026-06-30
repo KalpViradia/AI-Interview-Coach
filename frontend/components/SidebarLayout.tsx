@@ -25,7 +25,17 @@ interface SidebarLayoutProps {
   children: React.ReactNode;
 }
 
+import { Suspense } from "react";
+
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading layout...</div>}>
+      <SidebarLayoutInner>{children}</SidebarLayoutInner>
+    </Suspense>
+  );
+}
+
+function SidebarLayoutInner({ children }: SidebarLayoutProps) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();

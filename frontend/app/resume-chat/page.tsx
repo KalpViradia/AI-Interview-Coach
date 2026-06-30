@@ -18,7 +18,9 @@ type Message = {
   cached?: boolean;
 };
 
-export default function ResumeChatPage() {
+import { Suspense } from "react";
+
+function ResumeChatContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const isAuthenticated = status === "authenticated";
@@ -334,5 +336,13 @@ export default function ResumeChatPage() {
         )}
       </div>
     </SidebarLayout>
+  );
+}
+
+export default function ResumeChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>}>
+      <ResumeChatContent />
+    </Suspense>
   );
 }
