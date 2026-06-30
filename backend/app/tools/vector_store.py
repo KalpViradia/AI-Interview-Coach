@@ -22,7 +22,10 @@ _emb_fn = None
 def get_emb_fn():
     global _emb_fn
     if _emb_fn is None:
-        _emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+        _emb_fn = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+            api_key=settings.gemini_api_key,
+            task_type="RETRIEVAL_DOCUMENT"
+        )
     return _emb_fn
 
 # We will store all questions in a single collection

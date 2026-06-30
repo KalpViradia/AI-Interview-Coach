@@ -15,14 +15,11 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from app.core.config import get_settings
-from app.api import sessions, upload, auth, resume_chat, resumes
-from app.agents.graph import builder
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.core.rate_limit import limiter
-
 from app.core.logger import logger
 
 settings = get_settings()
@@ -66,13 +63,20 @@ async def lifespan(app: FastAPI):
         logger.info("Application startup complete. Graph and DB initialized.")
         yield
 
-
 app = FastAPI(
     title="AI Interview Coach",
     description="AI-powered interview preparation with multi-agent orchestration",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "ok", "version": "0.1.0"}
+
+from app.api import sessions, upload, auth, resume_chat, resumes
+from app.agents.graph import builder
 
 # Setup slowapi rate limiter
 app.state.limiter = limiter
@@ -89,15 +93,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "version": "0.1.0"}
-
-
-from app.api import sessions, upload, auth, resume_chat, resumes
 
 # Register API routes
 app.include_router(auth.router, prefix="/api")

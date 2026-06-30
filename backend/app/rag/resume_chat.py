@@ -3,7 +3,8 @@ import chromadb
 from chromadb.config import Settings
 import uuid
 import os
-from sentence_transformers import SentenceTransformer
+
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from google import genai
 from app.core.config import get_settings
 
@@ -12,12 +13,17 @@ from app.core.config import get_settings
 persist_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
 chroma_client = chromadb.PersistentClient(path=persist_dir)
 
-# Lazily load embedder to save memory on startup
+# Lazily load embedding model
 _embedder = None
 def get_embedder():
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        from app.core.config import get_settings
+        settings = get_settings()
+        _embedder = GoogleGenerativeAIEmbeddings(
+            model="models/text-embedding-004",
+            google_api_key=settings.gemini_api_key
+        )
     return _embedder
 
 import time
@@ -91,7 +97,7 @@ class ResumeRAGService:
             return
             
         # Generate embeddings
-        embeddings = get_embedder().encode(chunks).tolist()
+        embeddings = get_embedder().embed_documents(chunks)
         
         # Generate IDs
         ids = [f"chunk_{i}" for i in range(len(chunks))]
@@ -113,7 +119,7 @@ class ResumeRAGService:
             return "Resume not found or expired. Please upload your resume again."
             
         # Embed query
-        query_embedding = get_embedder().encode([query]).tolist()
+        query_embedding = get_embedder().embed_query(query)
         
         # Query Chroma
         n_results = min(3, collection.count())

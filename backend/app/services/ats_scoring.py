@@ -2,8 +2,8 @@ import re
 import json
 import logging
 from typing import List, Dict, Any, Tuple
-from sentence_transformers import SentenceTransformer, util
-from langchain_google_genai import ChatGoogleGenerativeAI
+import numpy as np
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from app.core.config import get_settings
 from app.schemas.agent_schemas import ATSBreakdown, CandidateProfile
 
@@ -15,10 +15,13 @@ def get_embedder():
     global _embedder
     if _embedder is None:
         try:
-            logger.info("Loading sentence-transformers model: all-MiniLM-L6-v2")
-            _embedder = SentenceTransformer('all-MiniLM-L6-v2')
+            logger.info("Loading Gemini embeddings for ATS scoring")
+            _embedder = GoogleGenerativeAIEmbeddings(
+                model="models/text-embedding-004",
+                google_api_key=settings.gemini_api_key
+            )
         except Exception as e:
-            logger.error(f"Failed to load sentence-transformers: {e}")
+            logger.error(f"Failed to load Gemini embeddings: {e}")
             _embedder = False # False means failed to load
     return _embedder if _embedder is not False else None
 
@@ -86,12 +89,13 @@ def calculate_semantic_score(resume_text: str, jd_text: str) -> int:
         
     try:
         # Truncate texts to avoid token limit issues
-        res_emb = embedder.encode(resume_text[:4000], convert_to_tensor=True)
-        jd_emb = embedder.encode(jd_text[:4000], convert_to_tensor=True)
+        res_emb = embedder.embed_query(resume_text[:4000])
+        jd_emb = embedder.embed_query(jd_text[:4000])
         
-        # Calculate cosine similarity
-        cosine_scores = util.cos_sim(res_emb, jd_emb)
-        sim = float(cosine_scores[0][0].item())
+        # Calculate cosine similarity using numpy
+        res_arr = np.array(res_emb)
+        jd_arr = np.array(jd_emb)
+        sim = float(np.dot(res_arr, jd_arr) / (np.linalg.norm(res_arr) * np.linalg.norm(jd_arr)))
         
         # Map similarity to a 0-40 scale. Typically cosine sim is > 0.4 for any related text.
         # Let's map 0.3 - 0.8 to 0 - 40 points.
