@@ -143,7 +143,7 @@ async def get_resume_details(
         raise HTTPException(status_code=404, detail="Resume not found")
         
     ats_checks = sum(1 for s in resume.sessions if s.session_type == "ats_check")
-    mock_interviews = sum(1 for s in resume.sessions if s.session_type == "mock_interview")
+    mock_interviews = sum(1 for s in resume.sessions if s.session_type in ["mock_interview", "general", "resume_based", "job_specific"])
     
     # We don't have separate types for voice and text interviews in DB right now,
     # but we will return 0 for now or calculate based on some heuristic if needed.

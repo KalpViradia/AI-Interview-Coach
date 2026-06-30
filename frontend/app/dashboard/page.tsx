@@ -51,7 +51,7 @@ export default function DashboardPage() {
   }
 
   // --- Analytics Data Prep ---
-  const mockInterviews = interviews.filter(i => i.session_type === "mock_interview");
+  const mockInterviews = interviews.filter(i => ["mock_interview", "general", "resume_based", "job_specific"].includes(i.session_type));
   const atsChecks = interviews.filter(i => i.session_type === "ats_check");
 
   // Only include completed mock interviews with a score > 0

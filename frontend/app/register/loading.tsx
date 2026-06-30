@@ -1,5 +1,5 @@
-import LoadingScreen from "@/components/LoadingScreen";
+import { AuthSkeleton } from "@/components/Skeletons";
 
 export default function RegisterLoading() {
-  return <LoadingScreen message="Loading..." />;
+  return <AuthSkeleton />;
 }

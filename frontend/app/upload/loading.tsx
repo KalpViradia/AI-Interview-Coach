@@ -1,10 +1,5 @@
-import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
-import SidebarLayout from "@/components/SidebarLayout";
+import { DashboardSkeleton } from "@/components/Skeletons";
 
-export default function Loading() {
-  return (
-    <SidebarLayout>
-      <UploadSkeleton />
-    </SidebarLayout>
-  );
+export default function UploadLoading() {
+  return <DashboardSkeleton />;
 }

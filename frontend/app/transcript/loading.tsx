@@ -1,10 +1,5 @@
-import TranscriptSkeleton from "@/components/skeletons/TranscriptSkeleton";
-import SidebarLayout from "@/components/SidebarLayout";
+import { DashboardSkeleton } from "@/components/Skeletons";
 
-export default function Loading() {
-  return (
-    <SidebarLayout>
-      <TranscriptSkeleton />
-    </SidebarLayout>
-  );
+export default function TranscriptLoading() {
+  return <DashboardSkeleton />;
 }

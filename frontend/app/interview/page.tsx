@@ -8,7 +8,7 @@ import { Send, Loader2, CheckCircle, AlertCircle, ArrowRight, BrainCircuit, Mic,
 import { submitAnswer, getSessionState, getSessionTranscript, Question, Evaluation, SessionReport, TranscriptTurn } from "@/lib/api-client";
 import ReactMarkdown from "react-markdown";
 import SidebarLayout from "@/components/SidebarLayout";
-import LoadingScreen from "@/components/LoadingScreen";
+import { InterviewSkeleton } from "@/components/Skeletons";
 
 // Sequential loading stages (never loops)
 const THINKING_STAGES = [
@@ -649,7 +649,7 @@ function InterviewContent() {
 
 export default function InterviewPage() {
   return (
-    <Suspense fallback={<LoadingScreen message="Initializing..." />}>
+    <Suspense fallback={<InterviewSkeleton />}>
       <InterviewContent />
     </Suspense>
   );

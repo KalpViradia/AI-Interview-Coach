@@ -1,10 +1,5 @@
-import DashboardSkeleton from "@/components/skeletons/DashboardSkeleton";
-import SidebarLayout from "@/components/SidebarLayout";
+import { DashboardSkeleton } from "@/components/Skeletons";
 
-export default function Loading() {
-  return (
-    <SidebarLayout>
-      <DashboardSkeleton />
-    </SidebarLayout>
-  );
+export default function DashboardLoading() {
+  return <DashboardSkeleton />;
 }

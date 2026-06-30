@@ -158,7 +158,7 @@ export interface SessionStateResponse {
   next_question?: Question;
   turn_count: number;
   is_complete: boolean;
-  session_type: "ats_check" | "mock_interview";
+  session_type: "ats_check" | "mock_interview" | "general" | "resume_based" | "job_specific";
 }
 
 export async function getSessionState(sessionId: string): Promise<SessionStateResponse> {

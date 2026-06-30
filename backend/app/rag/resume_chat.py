@@ -120,6 +120,7 @@ class ResumeRAGService:
             n_results=n_results
         )
         
+        context_docs = results['documents'][0] if results and 'documents' in results and results['documents'] else []
         context_str = "\n\n".join(context_docs)
         
         # Get conversational memory

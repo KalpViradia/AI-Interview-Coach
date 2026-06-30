@@ -244,7 +244,7 @@ async def submit_answer(
             )
             last_db_question = q_result.scalars().first()
             
-            if last_db_question and latest_evaluation and payload.answer not in ["__END_INTERVIEW__", "__SKIP__"]:
+            if last_db_question and latest_evaluation and payload.answer != "__END_INTERVIEW__":
                 db_answer = Answer(
                     question_id=last_db_question.id,
                     text=payload.answer

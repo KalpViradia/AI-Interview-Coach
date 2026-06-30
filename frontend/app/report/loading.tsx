@@ -1,10 +1,5 @@
-import ReportSkeleton from "@/components/skeletons/ReportSkeleton";
-import SidebarLayout from "@/components/SidebarLayout";
+import { DashboardSkeleton } from "@/components/Skeletons";
 
-export default function Loading() {
-  return (
-    <SidebarLayout>
-      <ReportSkeleton />
-    </SidebarLayout>
-  );
+export default function ReportLoading() {
+  return <DashboardSkeleton />;
 }

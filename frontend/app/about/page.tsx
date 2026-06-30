@@ -226,7 +226,8 @@ export default function AboutPage() {
             "Retrieves matching context from your personal knowledge base.",
             "Generates personalized interview questions for your role.",
             "Evaluates your answers against expected quality criteria.",
-            "Provides targeted feedback and learning recommendations."
+            "Provides targeted feedback and learning recommendations.",
+            "Generates a personalized learning roadmap and final report to guide your preparation."
           ].map((step, idx, arr) => (
             <div key={idx}>
               <div className="flex flex-col sm:flex-row sm:items-center gap-6 py-8">
