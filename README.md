@@ -170,4 +170,3 @@ npm run dev
 - Voice Interviews
 - Company-specific interview packs
 - Multi-language support
-- AI Interview Analytics

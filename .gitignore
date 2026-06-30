@@ -48,11 +48,3 @@ desktop.ini
 htmlcov/
 .pytest_cache/
 .mypy_cache/
-
-# ===== Docs =====
-Docs/
-docs/
-
-# ===== Video =====
-Video/
-video-assets/
