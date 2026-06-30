@@ -82,13 +82,21 @@ from app.agents.graph import builder
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Construct allowed origins dynamically
+allowed_origins = [
+    settings.frontend_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+if settings.cors_origins:
+    allowed_origins.extend([origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()])
+
 # CORS — allow Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.frontend_url,
-        "http://127.0.0.1:3000",  # Browsers treat localhost and 127.0.0.1 as different origins
-    ],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://ai-interview-coach.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

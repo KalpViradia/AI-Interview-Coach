@@ -36,6 +36,12 @@ class Settings(BaseSettings):
 
     # CORS
     frontend_url: str = "http://localhost:3000"
+    cors_origins: str = "" # Comma-separated list of allowed origins
+
+    @field_validator("frontend_url")
+    @classmethod
+    def strip_trailing_slash(cls, v: str) -> str:
+        return v.rstrip("/")
 
     # Auth — must match NEXTAUTH_SECRET in the frontend .env.local
     nextauth_secret: str = ""
