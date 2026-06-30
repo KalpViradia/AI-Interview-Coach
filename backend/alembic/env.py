@@ -12,6 +12,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+import sys
+import os
+
+# Add the backend directory to sys.path so 'app' can be imported regardless of where alembic is run
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Import SQLAlchemy models here for autogenerate support
 from app.models.schema import Base
 target_metadata = Base.metadata
