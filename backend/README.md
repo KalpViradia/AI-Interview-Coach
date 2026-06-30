@@ -39,6 +39,6 @@ The API will be running at `http://localhost:8000`. You can access the automatic
 - **LangGraph**: Used to construct the multi-agent system (Analyzer, Interviewer, Evaluator, Coach).
 - **PostgreSQL & SQLAlchemy**: The relational database used to store users, sessions, questions, answers, and reports.
 - **ChromaDB**: The vector database used to retrieve relevant questions during the interview.
-- **Gemini API**: The underlying LLM used for text generation, extraction, and evaluation.
+- **LLM Provider**: The underlying LLM used for text generation, extraction, and evaluation.
 
 

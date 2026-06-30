@@ -22,7 +22,7 @@ The application will be accessible at `http://localhost:3000`.
 - **Dashboard:** Track mock interview scores, skill trends, and past sessions.
 - **ATS Checker:** Upload your resume and match it against job descriptions to discover missing skills and weaknesses.
 - **Mock Interviews:** Chat-based interface with an adaptive AI interviewer.
-- **Resume Chat:** Interactively chat with your resume using a custom RAG-powered assistant.
+- **Resume Chat:** Context-aware Resume Chat powered by Retrieval-Augmented Generation (RAG).
 - **Detailed Reports:** Visualizations (using Recharts) to analyze your technical and communication performance.
 
 ## Key Technologies
