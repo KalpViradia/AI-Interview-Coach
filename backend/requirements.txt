@@ -1,6 +1,9 @@
 # AI Interview Coach — Backend Dependencies
 # All versions pinned per Rule #1
 
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+
 # Web framework
 fastapi==0.115.9
 uvicorn[standard]==0.34.3

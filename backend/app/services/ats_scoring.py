@@ -9,13 +9,18 @@ from app.schemas.agent_schemas import ATSBreakdown, CandidateProfile
 
 logger = logging.getLogger(__name__)
 
-# Load Sentence Transformer Model once at module level to avoid reloading
-try:
-    logger.info("Loading sentence-transformers model: all-MiniLM-L6-v2")
-    embedder = SentenceTransformer('all-MiniLM-L6-v2')
-except Exception as e:
-    logger.error(f"Failed to load sentence-transformers: {e}")
-    embedder = None
+# Lazily load Sentence Transformer Model to avoid OOM on startup
+_embedder = None
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        try:
+            logger.info("Loading sentence-transformers model: all-MiniLM-L6-v2")
+            _embedder = SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            logger.error(f"Failed to load sentence-transformers: {e}")
+            _embedder = False # False means failed to load
+    return _embedder if _embedder is not False else None
 
 settings = get_settings()
 
@@ -75,6 +80,7 @@ def calculate_skill_score(resume_text: str, jd_text: str) -> Tuple[int, List[str
 
 def calculate_semantic_score(resume_text: str, jd_text: str) -> int:
     """Calculates semantic similarity between resume and JD (max 40 points)."""
+    embedder = get_embedder()
     if not embedder:
         return 20 # Fallback if model failed to load
         

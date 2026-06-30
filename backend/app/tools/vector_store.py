@@ -17,8 +17,13 @@ settings = get_settings()
 # Initialize ChromaDB client pointing to the persistence directory
 chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_directory)
 
-# Default embedding function using sentence-transformers (all-MiniLM-L6-v2)
-emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+# Lazily load embedding function
+_emb_fn = None
+def get_emb_fn():
+    global _emb_fn
+    if _emb_fn is None:
+        _emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+    return _emb_fn
 
 # We will store all questions in a single collection
 COLLECTION_NAME = "interview_questions"
@@ -27,7 +32,7 @@ def get_collection():
     """Retrieve or create the questions collection."""
     return chroma_client.get_or_create_collection(
         name=COLLECTION_NAME,
-        embedding_function=emb_fn
+        embedding_function=get_emb_fn()
     )
 
 def chroma_retrieval_tool(topics: List[str], max_difficulty: int = 5, k: int = 3) -> List[Dict[str, Any]]:

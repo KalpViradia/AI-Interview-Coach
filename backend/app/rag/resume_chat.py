@@ -12,8 +12,13 @@ from app.core.config import get_settings
 persist_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
 chroma_client = chromadb.PersistentClient(path=persist_dir)
 
-# Initialize the embedding model (same one used elsewhere, or a fast one)
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+# Lazily load embedder to save memory on startup
+_embedder = None
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embedder
 
 import time
 
@@ -86,7 +91,7 @@ class ResumeRAGService:
             return
             
         # Generate embeddings
-        embeddings = embedder.encode(chunks).tolist()
+        embeddings = get_embedder().encode(chunks).tolist()
         
         # Generate IDs
         ids = [f"chunk_{i}" for i in range(len(chunks))]
@@ -108,7 +113,7 @@ class ResumeRAGService:
             return "Resume not found or expired. Please upload your resume again."
             
         # Embed query
-        query_embedding = embedder.encode([query]).tolist()
+        query_embedding = get_embedder().encode([query]).tolist()
         
         # Query Chroma
         n_results = min(3, collection.count())
