@@ -2,7 +2,7 @@
 
 > An intelligent interview preparation platform powered by AI.
 
-🌐 [Live Demo](#) | 🎥 [Demo Video](#)
+🌐 [Live Demo](https://ai-interview-coach-dev.vercel.app)
 
 [![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
