@@ -142,39 +142,39 @@ export default function DocumentUpload({
                   </div>
                 </div>
               ) : (
-                <div className="border border-zinc-700 bg-zinc-800/30 rounded-2xl p-6 min-h-[160px] flex items-center">
-                  <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl shrink-0">
+                <div className="border border-zinc-700 bg-zinc-800/30 rounded-2xl p-6 h-[160px] flex items-center w-full">
+                  <div className="flex w-full items-center justify-between gap-4 h-full">
+                    <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
+                      <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl shrink-0 h-14 w-14 flex items-center justify-center">
                         <FileText className="w-8 h-8" />
                       </div>
-                      <div className="min-w-0 flex-1 pr-4">
-                        <p className="text-zinc-200 font-medium truncate" title={file.name}>{file.name}</p>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 mt-1">
-                          <span className="uppercase">{file.name.split('.').pop()}</span>
-                          <span>•</span>
-                          <span>{(file.size / 1024).toFixed(1)} KB</span>
+                      <div className="min-w-0 flex-1 pr-2 flex flex-col justify-center">
+                        <p className="text-zinc-200 font-medium truncate w-full" title={file.name}>{file.name}</p>
+                        <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                          <span className="uppercase shrink-0">{file.name.split('.').pop()}</span>
+                          <span className="shrink-0">•</span>
+                          <span className="shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
                           {isLoading ? (
-                            <span className="flex items-center gap-1.5 text-indigo-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Parsing...</span>
+                            <span className="flex items-center gap-1.5 text-indigo-400 shrink-0"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Parsing...</span>
                           ) : (
-                            <span className="flex items-center gap-1.5 text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" /> Ready</span>
+                            <span className="flex items-center gap-1.5 text-emerald-400 shrink-0"><CheckCircle2 className="w-3.5 h-3.5" /> Ready</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleRemoveFile}
-                        className="px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-lg text-sm font-medium transition-colors"
+                        className="px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-lg text-sm font-medium transition-colors w-[80px] text-center shrink-0"
                       >
                         Remove
                       </button>
-                      <div {...getRootProps()}>
+                      <div {...getRootProps()} className="shrink-0">
                          <input {...getInputProps()} />
                          <button
                            type="button"
-                           className="px-3 py-2 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                           className="px-3 py-2 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 hover:text-white rounded-lg text-sm font-medium transition-colors w-[80px] text-center shrink-0"
                          >
                            Replace
                          </button>

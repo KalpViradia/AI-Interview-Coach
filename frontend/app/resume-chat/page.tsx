@@ -107,32 +107,8 @@ function ResumeChatContent() {
         };
 
         if (!file && text?.trim()) {
-          setIsUploading(false); // pause loading for prompt
-          showPrompt({
-            title: "Resume Name",
-            message: "Please enter a name for this pasted resume.",
-            defaultValue: "Pasted Resume",
-            confirmText: "Start Chat",
-            onConfirm: async (filename) => {
-              let finalName = filename || "Pasted Resume";
-              if (!finalName.toLowerCase().endsWith('.txt')) {
-                finalName += '.txt';
-              }
-              setIsUploading(true);
-              try {
-                const uploadFile = new File([text], finalName, { type: "text/plain" });
-                await doUpload(uploadFile);
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to process resume. Please try again.");
-              } finally {
-                setIsUploading(false);
-              }
-            },
-            onCancel: () => {
-              // do nothing, uploading is already false
-            }
-          });
-          return; // exit early, rest of flow happens in onConfirm
+          const uploadFile = new File([text], "Pasted_Resume.txt", { type: "text/plain" });
+          await doUpload(uploadFile);
         } else {
           const uploadFile = file!;
           await doUpload(uploadFile);

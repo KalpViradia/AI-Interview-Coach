@@ -9,26 +9,12 @@ from app.schemas.agent_schemas import ATSBreakdown, CandidateProfile
 
 logger = logging.getLogger(__name__)
 
-# Lazily load Sentence Transformer Model to avoid OOM on startup
-_embedder = None
-def get_embedder():
-    global _embedder
-    if _embedder is None:
-        try:
-            logger.info("Loading Gemini embeddings for ATS scoring")
-            _embedder = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001",
-                google_api_key=settings.gemini_api_key
-            )
-        except Exception as e:
-            logger.error(f"Failed to load Gemini embeddings: {e}")
-            _embedder = False # False means failed to load
-    return _embedder if _embedder is not False else None
+from app.services.embedding_service import EmbeddingService
 
 settings = get_settings()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model=settings.chat_model,
     google_api_key=settings.gemini_api_key,
     temperature=0.3,
 )
@@ -83,14 +69,10 @@ def calculate_skill_score(resume_text: str, jd_text: str) -> Tuple[int, List[str
 
 def calculate_semantic_score(resume_text: str, jd_text: str) -> int:
     """Calculates semantic similarity between resume and JD (max 40 points)."""
-    embedder = get_embedder()
-    if not embedder:
-        return 20 # Fallback if model failed to load
-        
     try:
         # Truncate texts to avoid token limit issues
-        res_emb = embedder.embed_query(resume_text[:4000])
-        jd_emb = embedder.embed_query(jd_text[:4000])
+        res_emb = EmbeddingService.embed_query(resume_text[:4000])
+        jd_emb = EmbeddingService.embed_query(jd_text[:4000])
         
         # Calculate cosine similarity using numpy
         res_arr = np.array(res_emb)

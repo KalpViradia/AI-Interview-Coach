@@ -112,6 +112,26 @@ app.include_router(resumes.router, prefix="/api")
 # Global Exception Handler for Unhandled Exceptions (Fixes CORS on 500)
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from app.services.embedding_service import EmbeddingGenerationException
+
+@app.exception_handler(EmbeddingGenerationException)
+async def embedding_generation_exception_handler(request: Request, exc: EmbeddingGenerationException):
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "EMBEDDING_GENERATION_FAILED",
+            "provider": "Google Gemini",
+            "message": "Unable to generate document embeddings.",
+            "recoverable": True
+        },
+        headers=headers
+    )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

@@ -327,6 +327,13 @@ export async function getResumeDetails(resumeId: string): Promise<ResumeDetailRe
   return apiFetch<ResumeDetailResponse>(`/resumes/${resumeId}`);
 }
 
+export async function renameResume(resumeId: string, displayName: string): Promise<ResumeResponse> {
+  return apiFetch<ResumeResponse>(`/resumes/${resumeId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ display_name: displayName }),
+  });
+}
+
 
 
 export async function deleteResume(resumeId: string): Promise<void> {

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import SidebarLayout from "@/components/SidebarLayout";
-import { getResumes, ResumeResponse, uploadToVault, deleteResume, downloadResume } from "@/lib/api-client";
+import { getResumes, ResumeResponse, uploadToVault, deleteResume, downloadResume, renameResume } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog/useDialog";
-import { FileText, Plus, Trash2, Eye, Download, FileCheck, Mic, MessageSquare, Loader2, Library } from "lucide-react";
+import { FileText, Plus, Trash2, Eye, Download, FileCheck, Mic, MessageSquare, Loader2, Library, Pencil } from "lucide-react";
 import DocumentUpload from "@/components/DocumentUpload";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -113,6 +113,28 @@ export default function ResumesPage() {
     });
   };
 
+  const handleRename = (resume: ResumeResponse, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    showPrompt({
+      title: "Rename Resume",
+      message: "Enter a new name for this resume.",
+      defaultValue: resume.display_name || resume.original_filename || "My Resume",
+      confirmText: "Rename",
+      onConfirm: async (newName) => {
+        if (!newName || !newName.trim()) return;
+        try {
+          await renameResume(resume.id, newName.trim());
+          await fetchResumes();
+          showSuccess("Success", "Resume renamed successfully.");
+        } catch (err: unknown) {
+          showError("Error", err instanceof Error ? err.message : "Failed to rename resume.");
+        }
+      }
+    });
+  };
+
   const handleDownload = async (r: ResumeResponse, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -148,10 +170,10 @@ export default function ResumesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-12">
             
             {/* Upload Area */}
-            <div className="lg:col-span-1">
+            <div className="w-full max-w-2xl">
               <DocumentUpload
                 id="vault-upload"
                 title="Upload Resume"
@@ -178,70 +200,81 @@ export default function ResumesPage() {
             </div>
 
             {/* Resume List */}
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-              {resumes.map(r => (
-                <div key={r.id} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden">
-                  <div className="p-5 border-b border-zinc-800 flex items-start gap-4">
-                    <div className="w-12 h-12 shrink-0 bg-indigo-500/10 rounded-lg flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-indigo-400" />
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-white border-b border-zinc-800 pb-4">Saved Resumes</h2>
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
+              {resumes.length > 0 ? (
+                resumes.map(r => (
+                  <div key={r.id} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden">
+                    <div className="p-5 border-b border-zinc-800 flex items-start gap-4">
+                      <div className="w-12 h-12 shrink-0 bg-indigo-500/10 rounded-lg flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-indigo-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold text-white truncate" title={r.display_name || r.original_filename}>
+                          {r.display_name || r.original_filename}
+                        </h3>
+                        <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
+                          <p>Uploaded: {r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy') : 'Unknown'}</p>
+                          <p>Size: {r.file_size ? Math.round(r.file_size / 1024) : 0} KB</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-base font-semibold text-white truncate" title={r.original_filename || r.display_name}>
-                        {r.original_filename || r.display_name}
-                      </h3>
-                      <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
-                        <p>Uploaded: {r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy') : 'Unknown'}</p>
-                        <p>Size: {r.file_size ? Math.round(r.file_size / 1024) : 0} KB</p>
+
+                    <div className="p-3 bg-zinc-950/50 flex-1 flex flex-col gap-2">
+                      <Link href={`/resumes/${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+                        <Eye className="w-4 h-4 text-zinc-400" />
+                        View PDF
+                      </Link>
+                      
+                      <Link href={`/upload?mode=ats&resumeId=${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-400 hover:bg-blue-500/10 transition-colors">
+                        <FileCheck className="w-4 h-4" />
+                        ATS Check
+                      </Link>
+
+                      <Link href={`/resume-chat?resumeId=${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-purple-400 hover:bg-purple-500/10 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                        Resume Chat
+                      </Link>
+                      
+                      <div className="h-px bg-zinc-800 my-1" />
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button 
+                          onClick={(e) => handleDownload(r, e)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
+                        <button 
+                          onClick={(e) => handleRename(r, e)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Rename
+                        </button>
+                        <button 
+                          onClick={(e) => handleDelete(r.id, e)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-3 bg-zinc-950/50 flex-1 flex flex-col gap-2">
-                    <Link href={`/resumes/${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-                      <Eye className="w-4 h-4 text-zinc-400" />
-                      View PDF
-                    </Link>
-                    
-                    <Link href={`/upload?mode=ats&resumeId=${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-400 hover:bg-blue-500/10 transition-colors">
-                      <FileCheck className="w-4 h-4" />
-                      ATS Check
-                    </Link>
-
-
-                    <Link href={`/resume-chat?resumeId=${r.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-purple-400 hover:bg-purple-500/10 transition-colors">
-                      <MessageSquare className="w-4 h-4" />
-                      Resume Chat
-                    </Link>
-                    
-                    <div className="h-px bg-zinc-800 my-1" />
-                    
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={(e) => handleDownload(r, e)}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Download
-                      </button>
-                      <button 
-                        onClick={(e) => handleDelete(r.id, e)}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Delete
-                      </button>
-                    </div>
+                ))
+              ) : (
+                !uploading && (
+                  <div className="col-span-full bg-zinc-900/30 border border-zinc-800 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+                    <FileText className="w-12 h-12 text-zinc-600 mb-4" />
+                    <h3 className="text-xl font-semibold text-zinc-300 mb-2">Vault is Empty</h3>
+                    <p className="text-zinc-500 max-w-sm">Upload your first resume PDF to unlock personalized mock interviews, ATS checks, and interactive resume chat.</p>
                   </div>
-                </div>
-              ))}
-              
-              {resumes.length === 0 && !uploading && (
-                <div className="md:col-span-2 bg-zinc-900/30 border border-zinc-800 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center">
-                  <FileText className="w-12 h-12 text-zinc-600 mb-4" />
-                  <h3 className="text-xl font-semibold text-zinc-300 mb-2">Vault is Empty</h3>
-                  <p className="text-zinc-500 max-w-sm">Upload your first resume PDF to unlock personalized mock interviews, ATS checks, and interactive resume chat.</p>
-                </div>
+                )
               )}
+            </div>
             </div>
 
           </div>

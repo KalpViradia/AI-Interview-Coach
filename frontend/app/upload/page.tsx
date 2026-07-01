@@ -156,33 +156,6 @@ function UploadContent() {
       }
     };
 
-    if (resumeSource === "upload" && !resumeFile && resumeText?.trim()) {
-      showPrompt({
-        title: "Resume Name",
-        message: "Please enter a name for this pasted resume.",
-        defaultValue: "Pasted Resume",
-        confirmText: "Continue",
-        onConfirm: async (filename) => {
-          let finalName = filename || "Pasted Resume";
-          if (!finalName.toLowerCase().endsWith('.txt')) {
-             finalName += '.txt';
-          }
-          const uploadFile = new File([resumeText], finalName, { type: "text/plain" });
-          if (isAuthenticated) {
-             setLoading(true);
-             try {
-                await uploadDocument(uploadFile, 'resume');
-             } catch (e) {
-                // ignore
-             }
-          }
-          await doSubmit(resumeText);
-        },
-        onCancel: () => {}
-      });
-      return;
-    }
-
     await doSubmit(resumeText);
   };
 

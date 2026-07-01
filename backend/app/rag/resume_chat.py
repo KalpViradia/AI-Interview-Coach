@@ -12,19 +12,7 @@ from app.core.config import get_settings
 # For Resume Chat, since it's a temporary session, ephemeral is fine, or we can use persistent.
 persist_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
 chroma_client = chromadb.PersistentClient(path=persist_dir)
-
-# Lazily load embedding model
-_embedder = None
-def get_embedder():
-    global _embedder
-    if _embedder is None:
-        from app.core.config import get_settings
-        settings = get_settings()
-        _embedder = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=settings.gemini_api_key
-        )
-    return _embedder
+from app.services.embedding_service import EmbeddingService
 
 import time
 
@@ -97,7 +85,7 @@ class ResumeRAGService:
             return
             
         # Generate embeddings
-        embeddings = get_embedder().embed_documents(chunks)
+        embeddings = EmbeddingService.embed_documents(chunks)
         
         # Generate IDs
         ids = [f"chunk_{i}" for i in range(len(chunks))]
@@ -119,7 +107,7 @@ class ResumeRAGService:
             return "Resume not found or expired. Please upload your resume again."
             
         # Embed query
-        query_embedding = get_embedder().embed_query(query)
+        query_embedding = EmbeddingService.embed_query(query)
         
         # Query Chroma
         n_results = min(3, collection.count())
@@ -155,7 +143,7 @@ Current User Message:
 Answer concisely and professionally. Format your response using Markdown, using bullet points, numbered lists, or bold text where appropriate to make it easy to read:"""
 
         response = await self.client.aio.models.generate_content(
-            model="gemini-2.5-flash",
+            model=self.settings.chat_model,
             contents=prompt
         )
         answer = response.text.strip()

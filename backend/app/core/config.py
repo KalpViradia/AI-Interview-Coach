@@ -30,9 +30,12 @@ class Settings(BaseSettings):
 
     # Gemini API
     gemini_api_key: str = ""
+    chat_model: str = "gemini-2.5-flash"
+    embedding_model: str = "models/gemini-embedding-2"
+    vision_model: str = "gemini-2.5-flash"
 
     # ChromaDB
-    chroma_persist_directory: str = "./chroma_db"
+    chroma_persist_directory: str = "./chroma_db_v2"
 
     # CORS
     frontend_url: str = "http://localhost:3000"
