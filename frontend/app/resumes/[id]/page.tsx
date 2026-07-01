@@ -5,6 +5,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { getResumeDetails, ResumeDetailResponse, deleteResume } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 import { ArrowLeft, Calendar, File, CheckCircle2, Loader2, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -14,6 +15,7 @@ export default function ResumeViewerPage() {
   const router = useRouter();
   const params = useParams();
   const resumeId = params.id as string;
+  const { showConfirm, showSuccess, showError, showLoading } = useDialog();
   
   const [resume, setResume] = useState<ResumeDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,14 +36,22 @@ export default function ResumeViewerPage() {
     }
   }, [status, router, resumeId]);
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this resume?")) return;
-    try {
-      await deleteResume(resumeId);
-      router.push("/resumes");
-    } catch (err) {
-      alert("Failed to delete resume.");
-    }
+  const handleDelete = () => {
+    showConfirm({
+      title: "Delete Resume?",
+      message: "Are you sure you want to permanently delete this resume?\n\nThis action cannot be undone.",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        showLoading("Deleting", "Removing resume from your vault...");
+        try {
+          await deleteResume(resumeId);
+          showSuccess("Deleted", "Resume deleted successfully.");
+          router.push("/resumes");
+        } catch (err) {
+          showError("Error", "Failed to delete resume.");
+        }
+      }
+    });
   };
 
   const handleDownloadText = () => {

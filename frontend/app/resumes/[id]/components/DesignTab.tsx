@@ -7,6 +7,7 @@ import { templates, TemplateId } from "./templates";
 import { parseResumeClientSide } from "@/lib/resume-parser";
 import { ParsedResume, managedFetch } from "@/lib/api-client";
 import EditorTab from "./EditorTab";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 
 interface DesignTabProps {
   resumeId: string;
@@ -20,6 +21,7 @@ export default function DesignTab({ resumeId, extractedText, initialParsedData }
   const [parsedData, setParsedData] = useState<ParsedResume | null>(null);
   const [sidebarMode, setSidebarMode] = useState<"templates" | "editor">("templates");
   const [isSaving, setIsSaving] = useState(false);
+  const { showError, showSuccess } = useDialog();
 
   useEffect(() => {
     if (initialParsedData && Object.keys(initialParsedData).length > 0) {
@@ -51,9 +53,10 @@ export default function DesignTab({ resumeId, extractedText, initialParsedData }
         body: JSON.stringify(parsedData)
       });
       if (!res.ok) throw new Error("Failed to save");
+      showSuccess("Success", "Content saved successfully.");
     } catch (err) {
       console.error(err);
-      alert("Failed to save content.");
+      showError("Error", "Failed to save content.");
     } finally {
       setIsSaving(false);
     }

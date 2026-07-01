@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import WakeupNotification from "@/components/WakeupNotification";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;

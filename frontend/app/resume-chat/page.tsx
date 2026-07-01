@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { getResumes, ResumeResponse, managedFetch } from "@/lib/api-client";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -25,6 +26,7 @@ function ResumeChatContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const isAuthenticated = status === "authenticated";
+  const { showPrompt } = useDialog();
 
   const [resumeSource, setResumeSource] = useState<"vault" | "upload">("upload");
   const [selectedResumeId, setSelectedResumeId] = useState<string>("");
@@ -82,14 +84,63 @@ function ResumeChatContent() {
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       if (resumeSource === "upload") {
-        const uploadFile = file || new File([text], "pasted_resume.txt", { type: "text/plain" });
-        const formData = new FormData();
-        formData.append("file", uploadFile);
-        res = await managedFetch(`${API_BASE_URL}/resume-chat/upload`, {
-          method: "POST",
-          headers, // Include auth if available (though endpoint doesn't require it, good practice)
-          body: formData,
-        });
+        const doUpload = async (uploadFile: File) => {
+          const formData = new FormData();
+          formData.append("file", uploadFile);
+          res = await managedFetch(`${API_BASE_URL}/resume-chat/upload`, {
+            method: "POST",
+            headers,
+            body: formData,
+          });
+          
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to initialize chat");
+          }
+          
+          const data = await res.json();
+          setSessionId(data.session_id);
+          
+          setMessages([
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: "I've successfully analyzed your resume! Ask me anything about your experience, or ask me to generate custom interview questions for you based on this resume."
+            }
+          ]);
+        };
+
+        if (!file && text.trim()) {
+          setIsUploading(false); // pause loading for prompt
+          showPrompt({
+            title: "Resume Name",
+            message: "Please enter a name for this pasted resume.",
+            defaultValue: "Pasted Resume",
+            confirmText: "Start Chat",
+            onConfirm: async (filename) => {
+              let finalName = filename || "Pasted Resume";
+              if (!finalName.toLowerCase().endsWith('.txt')) {
+                finalName += '.txt';
+              }
+              setIsUploading(true);
+              try {
+                const uploadFile = new File([text], finalName, { type: "text/plain" });
+                await doUpload(uploadFile);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to process resume. Please try again.");
+              } finally {
+                setIsUploading(false);
+              }
+            },
+            onCancel: () => {
+              // do nothing, uploading is already false
+            }
+          });
+          return; // exit early, rest of flow happens in onConfirm
+        } else {
+          const uploadFile = file!;
+          await doUpload(uploadFile);
+        }
       } else {
         headers["Content-Type"] = "application/json";
         res = await managedFetch(`${API_BASE_URL}/resume-chat/select`, {
@@ -97,23 +148,24 @@ function ResumeChatContent() {
           headers,
           body: JSON.stringify({ resume_id: selectedResumeId }),
         });
+        
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || "Failed to initialize chat");
+        }
+        
+        const data = await res.json();
+        setSessionId(data.session_id);
+        
+        setMessages([
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: "I've successfully analyzed your resume! Ask me anything about your experience, or ask me to generate custom interview questions for you based on this resume."
+          }
+        ]);
       }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to initialize chat");
-      }
-      
-      const data = await res.json();
-      setSessionId(data.session_id);
-      
-      setMessages([
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: "I've successfully analyzed your resume! Ask me anything about your experience, or ask me to generate custom interview questions for you based on this resume."
-        }
-      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to process resume. Please try again.");
     } finally {

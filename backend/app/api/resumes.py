@@ -7,7 +7,7 @@ Handles Resume Vault CRUD operations for authenticated users.
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -167,6 +167,32 @@ async def get_resume_details(
         voice_interviews=0, # Placeholder
         resume_chats=0,     # Placeholder
         average_score=avg_score
+    )
+
+@router.get("/resumes/{resume_id}/download")
+async def download_resume(
+    resume_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Download the extracted text of the resume as a file."""
+    result = await db.execute(
+        select(Resume).where(
+            Resume.id == uuid.UUID(resume_id),
+            Resume.user_id == uuid.UUID(current_user.id)
+        )
+    )
+    resume = result.scalars().first()
+    
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    return Response(
+        content=resume.raw_text,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename={resume.original_filename or 'resume'}.txt"
+        }
     )
 
 @router.patch("/resumes/{resume_id}", response_model=ResumeResponse)

@@ -3,28 +3,37 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hourglass, Loader2 } from "lucide-react";
-import { wakeupManager } from "@/lib/api-client";
 
 export default function WakeupNotification() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Silent warm-up
-    const warmup = async () => {
+    let isMounted = true;
+    let timer: NodeJS.Timeout;
+
+    const checkHealth = async () => {
+      // Start a timer. If health check doesn't respond in 1500ms, Render is probably sleeping
+      timer = setTimeout(() => {
+        if (isMounted) setIsVisible(true);
+      }, 1500);
+
       try {
-        const url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/health";
-        fetch(url).catch(() => {});
+        const url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/health";
+        // Force no-cache so we actually hit the backend
+        await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
       } catch (e) {
         // ignore
+      } finally {
+        clearTimeout(timer);
+        if (isMounted) setIsVisible(false);
       }
     };
-    warmup();
 
-    const unsubscribe = wakeupManager.subscribe((visible) => {
-      setIsVisible(visible);
-    });
+    checkHealth();
+
     return () => {
-      unsubscribe();
+      isMounted = false;
+      clearTimeout(timer);
     };
   }, []);
 
@@ -36,7 +45,7 @@ export default function WakeupNotification() {
           animate={{ height: "44px", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed top-0 right-0 z-[9999] bg-[#1b1a35] border-b border-purple-500/30 overflow-hidden left-0 [.has-sidebar_&]:md:left-72"
+          className="w-full bg-[#1b1a35] border-b border-purple-500/30 overflow-hidden shrink-0"
         >
           <div className="h-[44px] flex items-center justify-between px-4 md:px-6 mx-auto max-w-7xl">
             <div className="flex items-center gap-3">

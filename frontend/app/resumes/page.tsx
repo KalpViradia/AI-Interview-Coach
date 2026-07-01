@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import SidebarLayout from "@/components/SidebarLayout";
-import { getResumes, ResumeResponse, uploadToVault, deleteResume } from "@/lib/api-client";
+import { getResumes, ResumeResponse, uploadToVault, deleteResume, downloadResume } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 import { FileText, Plus, Trash2, Eye, Download, FileCheck, Mic, MessageSquare, Loader2, Library } from "lucide-react";
 import DocumentUpload from "@/components/DocumentUpload";
 import { format } from "date-fns";
@@ -13,6 +14,7 @@ import Link from "next/link";
 export default function ResumesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { showConfirm, showSuccess, showError, showLoading, showPrompt, closeDialog } = useDialog();
   
   const [resumes, setResumes] = useState<ResumeResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,48 +57,70 @@ export default function ResumesPage() {
     }
   };
 
-  const handleUploadText = async () => {
+  const handleUploadText = () => {
     if (!text.trim()) {
       setError("Please paste some text first.");
       return;
     }
     setError("");
-    setUploading(true);
-    try {
-      const textFile = new File([text], "pasted_resume.txt", { type: "text/plain" });
-      await uploadToVault(textFile);
-      await fetchResumes();
-      setFile(null);
-      setText("");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to upload pasted text.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this resume?")) return;
     
-    try {
-      await deleteResume(id);
-      setResumes(prev => prev.filter(r => r.id !== id));
-    } catch (err) {
-      alert("Failed to delete resume.");
-    }
+    showPrompt({
+      title: "Resume Name",
+      message: "Please enter a name for this resume.",
+      defaultValue: "Pasted Resume",
+      confirmText: "Save",
+      onConfirm: async (filename) => {
+        let finalName = filename || "Pasted Resume";
+        if (!finalName.toLowerCase().endsWith('.txt')) {
+          finalName += '.txt';
+        }
+        
+        setUploading(true);
+        try {
+          const textFile = new File([text], finalName, { type: "text/plain" });
+          await uploadToVault(textFile);
+          await fetchResumes();
+          setFile(null);
+          setText("");
+          showSuccess("Success", "Resume saved successfully.");
+        } catch (err: unknown) {
+          showError("Upload Failed", err instanceof Error ? err.message : "Failed to upload pasted text.");
+        } finally {
+          setUploading(false);
+        }
+      }
+    });
   };
 
-  const handleDownload = (r: ResumeResponse, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Assuming backend serves PDF at /api/resumes/{id}/content or we can just fetch it
-    // Actually, in the current system we might not have a direct PDF download endpoint yet, 
-    // but the user said "Keep backend APIs that serve PDFs". Let's point to /api/resumes/{id}/pdf 
-    // Wait, let's just make it a link to the PDF if we know the path, or a generic placeholder.
-    // The previous code didn't have a download function, but let's add the button.
-    alert("Download functionality will be wired up to the storage bucket.");
+    
+    showConfirm({
+      title: "Delete Resume?",
+      message: "Are you sure you want to permanently delete this resume?\n\nThis action cannot be undone.",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        showLoading("Deleting", "Removing resume from your vault...");
+        try {
+          await deleteResume(id);
+          setResumes(prev => prev.filter(r => r.id !== id));
+          showSuccess("Deleted", "Resume deleted successfully.");
+        } catch (err) {
+          showError("Error", "Failed to delete resume.");
+        }
+      }
+    });
+  };
+
+  const handleDownload = async (r: ResumeResponse, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await downloadResume(r.id, r.original_filename || "resume.txt");
+    } catch (err) {
+      showError("Download Failed", "There was an error downloading your resume.");
+    }
   };
 
   if (loading) {

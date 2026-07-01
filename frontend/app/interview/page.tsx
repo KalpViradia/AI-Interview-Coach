@@ -9,6 +9,7 @@ import { submitAnswer, getSessionState, getSessionTranscript, Question, Evaluati
 import ReactMarkdown from "react-markdown";
 import SidebarLayout from "@/components/SidebarLayout";
 import { InterviewSkeleton } from "@/components/Skeletons";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 
 // Sequential loading stages (never loops)
 const THINKING_STAGES = [
@@ -53,8 +54,7 @@ function InterviewContent() {
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [thinkingMessage, setThinkingMessage] = useState(THINKING_STAGES[0]);
 
-  // Confirmation dialog state
-  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const { showConfirm } = useDialog();
   // Track whether current question's answer has been submitted
   const [hasSubmittedCurrent, setHasSubmittedCurrent] = useState(false);
 
@@ -195,12 +195,17 @@ function InterviewContent() {
     }
 
     // Scenario 1: Current question not yet submitted → show confirmation
-    setShowEndConfirm(true);
+    showConfirm({
+      title: "End Interview?",
+      message: `You have completed ${questionsAnswered} of ${totalQuestions} questions.\n\nEnding now will:\n• Save your interview progress\n• Generate your interview report\n• Mark ${questionsRemaining} remaining question(s) as skipped\n\n${!hasSubmittedCurrent ? 'The current question has not been submitted.' : ''}`,
+      confirmText: "End Interview",
+      cancelText: "Continue Interview",
+      onConfirm: handleConfirmEnd
+    });
   };
 
   const handleConfirmEnd = async () => {
     if (!sessionId) return;
-    setShowEndConfirm(false);
     setIsAIThinking(true);
     setIsEnding(true);
     setIsSkipping(false);
@@ -296,82 +301,6 @@ function InterviewContent() {
   return (
     <SidebarLayout>
       <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900">
-
-        {/* ── END INTERVIEW CONFIRMATION MODAL ── */}
-        <AnimatePresence>
-          {showEndConfirm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-              onClick={() => setShowEndConfirm(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-md w-full shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Close button */}
-                <button
-                  onClick={() => setShowEndConfirm(false)}
-                  className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors p-1"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-
-                <div className="text-center mb-6">
-                  <div className="w-14 h-14 mx-auto bg-red-500/10 rounded-2xl flex items-center justify-center border border-red-500/20 mb-4">
-                    <LogOut className="w-7 h-7 text-red-400" />
-                  </div>
-                  <h2 className="text-xl font-bold text-white mb-2">End Interview?</h2>
-                  <p className="text-sm text-zinc-400">
-                    You have completed <span className="text-white font-semibold">{questionsAnswered}</span> of <span className="text-white font-semibold">{totalQuestions}</span> questions.
-                  </p>
-                  {!hasSubmittedCurrent && (
-                    <p className="text-sm text-amber-400 mt-2">
-                      The current question has not been submitted.
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-zinc-950/50 border border-zinc-800 rounded-2xl p-4 mb-6 space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Ending now will:</p>
-                  <div className="flex items-center gap-3 text-sm text-zinc-300">
-                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                    Save your interview progress
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-zinc-300">
-                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                    Generate your interview report
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-zinc-300">
-                    <SkipForward className="w-4 h-4 text-zinc-500 shrink-0" />
-                    Mark {questionsRemaining} remaining question{questionsRemaining !== 1 ? 's' : ''} as skipped
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => setShowEndConfirm(false)}
-                    className="w-full py-3 px-6 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm transition-all active:scale-[0.98]"
-                  >
-                    Continue Interview
-                  </button>
-                  <button
-                    onClick={handleConfirmEnd}
-                    className="w-full py-3 px-6 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 font-semibold text-sm transition-all active:scale-[0.98]"
-                  >
-                    End Interview
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* LEFT SIDEBAR: Progress */}
         <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">

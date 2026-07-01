@@ -11,71 +11,15 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 // -----------------------------------------------------------------------------
-// Wakeup Manager
+// managedFetch
 // -----------------------------------------------------------------------------
-class WakeupManager {
-  private pendingCount = 0;
-  private timeoutId: NodeJS.Timeout | null = null;
-  private isVisible = false;
-  private listeners = new Set<(visible: boolean) => void>();
-
-  subscribe = (listener: (visible: boolean) => void) => {
-    this.listeners.add(listener);
-    listener(this.isVisible);
-    return () => this.listeners.delete(listener);
-  };
-
-  private notify = () => {
-    this.listeners.forEach((l) => l(this.isVisible));
-  };
-
-  onRequestStart = () => {
-    this.pendingCount++;
-    if (this.pendingCount === 1) {
-      this.timeoutId = setTimeout(() => {
-        this.isVisible = true;
-        this.notify();
-      }, 3000);
-    }
-  };
-
-  onRequestEnd = () => {
-    this.pendingCount = Math.max(0, this.pendingCount - 1);
-    if (this.pendingCount === 0) {
-      if (this.timeoutId) {
-        clearTimeout(this.timeoutId);
-        this.timeoutId = null;
-      }
-      if (this.isVisible) {
-        this.isVisible = false;
-        this.notify();
-      }
-    }
-  };
-}
-
-export const wakeupManager = new WakeupManager();
-
 /**
- * A wrapper around global fetch that tracks backend requests for WakeupManager.
+ * A wrapper around global fetch that previously tracked requests for WakeupManager.
+ * Preserved for backwards compatibility since many files use it.
  */
 export async function managedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = typeof input === "string" ? input : (input instanceof Request ? input.url : input.toString());
-  
-  const isBackendRequest = 
-    url.includes(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") || 
-    url.includes(API_BASE_URL);
-
-  if (!isBackendRequest) {
-    return fetch(input, init);
-  }
-
-  wakeupManager.onRequestStart();
-  try {
-    return await fetch(input, init);
-  } finally {
-    wakeupManager.onRequestEnd();
-  }
+  return fetch(input, init);
 }
 
 /**
@@ -130,7 +74,7 @@ export async function apiFetch<T>(
  * Health check — verify backend is reachable.
  */
 export async function healthCheck() {
-  const url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/health";
+  const url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/health";
   const response = await managedFetch(url);
   if (!response.ok) throw new Error("Health check failed");
   return response.json();
@@ -366,6 +310,40 @@ export async function getResumeDetails(resumeId: string): Promise<ResumeDetailRe
 
 export async function deleteResume(resumeId: string): Promise<void> {
   await apiFetch(`/resumes/${resumeId}`, { method: "DELETE" });
+}
+
+export async function downloadResume(resumeId: string, filename: string): Promise<void> {
+  const jwtRes = await fetch("/api/auth/token");
+  const { token } = await jwtRes.json();
+  
+  const res = await managedFetch(`${API_BASE_URL}/resumes/${resumeId}/download`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  
+  if (!res.ok) {
+    throw new Error("Failed to download resume");
+  }
+  
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  
+  // Replace .pdf with .txt since backend only stores raw text
+  let finalFilename = filename;
+  if (finalFilename.toLowerCase().endsWith('.pdf')) {
+    finalFilename = finalFilename.substring(0, finalFilename.length - 4) + '.txt';
+  }
+  a.download = finalFilename;
+  
+  document.body.appendChild(a);
+  a.click();
+  
+  // Cleanup
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
 }
 
 // -----------------------------------------------------------------------------

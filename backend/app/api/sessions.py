@@ -347,11 +347,11 @@ async def get_sessions(
             "completed_at": s.completed_at.isoformat() if s.completed_at else None,
             "ats_breakdown": ats_data,
             "report": {
-                "summary": s.report.summary_json.get("summary", "") if s.report else "",
-                "score": s.report.summary_json.get("score", 0.0) if s.report else 0.0,
-                "technical_score": s.report.summary_json.get("technical_score", 0.0) if s.report else 0.0,
-                "communication_score": s.report.summary_json.get("communication_score", 0.0) if s.report else 0.0,
-                "problem_solving_score": s.report.summary_json.get("problem_solving_score", 0.0) if s.report else 0.0,
+                "summary": (s.report.summary_json or {}).get("summary", "") if s.report else "",
+                "score": (s.report.summary_json or {}).get("score", 0.0) if s.report else 0.0,
+                "technical_score": (s.report.summary_json or {}).get("technical_score", 0.0) if s.report else 0.0,
+                "communication_score": (s.report.summary_json or {}).get("communication_score", 0.0) if s.report else 0.0,
+                "problem_solving_score": (s.report.summary_json or {}).get("problem_solving_score", 0.0) if s.report else 0.0,
                 "readiness_label": s.report.readiness_label if s.report else "",
                 "weak_topics": s.report.weak_topics_json if s.report else [],
             } if s.report else None
@@ -399,15 +399,15 @@ async def get_session_state(
             session_type = db_session.session_type
             if db_session.report:
                 db_report_dict = {
-                    "summary": db_session.report.summary_json.get("summary", ""),
-                    "score": db_session.report.summary_json.get("score", 0.0),
-                    "technical_score": db_session.report.summary_json.get("technical_score", 0.0),
-                    "communication_score": db_session.report.summary_json.get("communication_score", 0.0),
-                    "problem_solving_score": db_session.report.summary_json.get("problem_solving_score", 0.0),
+                    "summary": (db_session.report.summary_json or {}).get("summary", ""),
+                    "score": (db_session.report.summary_json or {}).get("score", 0.0),
+                    "technical_score": (db_session.report.summary_json or {}).get("technical_score", 0.0),
+                    "communication_score": (db_session.report.summary_json or {}).get("communication_score", 0.0),
+                    "problem_solving_score": (db_session.report.summary_json or {}).get("problem_solving_score", 0.0),
                     "readiness_label": db_session.report.readiness_label,
                     "weak_topics": db_session.report.weak_topics_json,
                     "roadmap": db_session.report.roadmap_json,
-                    "strong_topics": db_session.report.summary_json.get("strong_topics", []),
+                    "strong_topics": (db_session.report.summary_json or {}).get("strong_topics", []),
                 }
     
     final_report = state.get("report") or db_report_dict

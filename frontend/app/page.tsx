@@ -6,6 +6,7 @@ import { ArrowRight, BrainCircuit, Code2, LineChart, LogIn } from "lucide-react"
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import WakeupNotification from "@/components/WakeupNotification";
 
 export default function Home() {
   const { status } = useSession();
@@ -26,10 +27,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30 flex flex-col">
+      <WakeupNotification />
       
       {/* Navbar */}
-      <nav className="absolute top-0 w-full flex justify-between items-center p-6 z-10">
+      <nav className="absolute top-0 w-full flex justify-between items-center p-6 z-10 max-w-7xl mx-auto left-0 right-0">
         <div className="flex items-center gap-2">
           <img src="/icon.png" alt="AI Coach Logo" className="w-8 h-8 rounded-lg shadow-md shadow-indigo-500/20" />
           <span className="font-bold text-lg">AI Coach</span>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Wand2, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 
 interface OptimizeTabProps {
   resumeId: string;
@@ -15,6 +16,7 @@ export default function OptimizeTab({ resumeId }: OptimizeTabProps) {
   const [action, setAction] = useState("improve_summary");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ improved: string, changes_summary: string } | null>(null);
+  const { showError } = useDialog();
 
   const handleOptimize = async () => {
     if (!sectionText.trim()) return;
@@ -32,7 +34,7 @@ export default function OptimizeTab({ resumeId }: OptimizeTabProps) {
       setResult({ improved: response.improved, changes_summary: response.changes_summary });
     } catch (err) {
       console.error(err);
-      alert("Failed to optimize text.");
+      showError("Error", "Failed to optimize text.");
     } finally {
       setLoading(false);
     }
