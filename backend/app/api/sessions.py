@@ -14,7 +14,12 @@ Auth model:
 import uuid
 import os
 import hashlib
+import time
+import traceback
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Request, HTTPException, Depends, File, UploadFile
 from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,12 +208,29 @@ async def submit_answer(
         raise HTTPException(status_code=404, detail="Session not found")
         
     try:
+        start_time = time.time()
         final_state = await graph.ainvoke(
             Command(resume=payload.answer), 
             config=config
         )
+        exec_time = time.time() - start_time
+        
+        turn = final_state.get("turn_count", 0)
+        logger.info(
+            f"Answer processed successfully for session {session_id}",
+            extra={
+                "session_id": session_id,
+                "question_number": turn,
+                "answer_length": len(payload.answer),
+                "execution_time_sec": round(exec_time, 2)
+            }
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(
+            f"Failed to process answer for session {session_id}: {str(e)}\n{traceback.format_exc()}",
+            extra={"session_id": session_id, "answer_length": len(payload.answer)}
+        )
+        raise HTTPException(status_code=500, detail="Unable to evaluate interview response.")
         
     evaluations = final_state.get("evaluations", [])
     latest_evaluation = evaluations[-1] if evaluations else None

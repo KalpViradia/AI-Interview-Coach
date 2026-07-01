@@ -53,6 +53,7 @@ function InterviewContent() {
   const [isSkipping, setIsSkipping] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [thinkingMessage, setThinkingMessage] = useState(THINKING_STAGES[0]);
+  const [isEvaluationExpanded, setIsEvaluationExpanded] = useState(false);
 
   const { showConfirm } = useDialog();
   // Track whether current question's answer has been submitted
@@ -151,6 +152,7 @@ function InterviewContent() {
     try {
       const response = await submitAnswer(sessionId, isSkip ? "__SKIP__" : answer);
       setEvaluation(response.evaluation || null);
+      setIsEvaluationExpanded(false);
       setNextQuestion(response.next_question || null);
       setIsComplete(response.is_complete);
       setHasSubmittedCurrent(true);
@@ -291,11 +293,11 @@ function InterviewContent() {
   }
 
   const difficultyConfig = {
-    1: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "🟢 Easy" },
-    2: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "🟢 Easy" },
-    3: { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", label: "🟡 Medium" },
-    4: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", label: "🔴 Hard" },
-    5: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", label: "🔴 Hard" }
+    1: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "Easy" },
+    2: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "Easy" },
+    3: { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", label: "Medium" },
+    4: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", label: "Hard" },
+    5: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", label: "Hard" }
   }[question.difficulty] || { color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20", label: "Medium" };
 
   return (
@@ -317,9 +319,9 @@ function InterviewContent() {
                       ${isPast ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
                         isCurrent ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]' :
                         'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>
-                      {isPast ? <CheckCircle className="w-4 h-4" /> : stepNum}
+                      {isPast ? <CheckCircle className="w-4 h-4" /> : (isCurrent ? "●" : "○")}
                     </div>
-                    <span className={`text-sm font-medium ${isCurrent ? 'text-white' : 'text-zinc-400'}`}>
+                    <span className={`text-sm font-medium ${isCurrent ? 'text-indigo-400' : isPast ? 'text-zinc-400' : 'text-zinc-500'}`}>
                       Question {stepNum}
                     </span>
                   </div>
@@ -329,6 +331,28 @@ function InterviewContent() {
           </div>
 
           <div className="pt-8 mt-8 border-t border-zinc-900">
+            <div className="mb-6 space-y-2">
+              <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-zinc-500">
+                <span>Progress</span>
+                <span>{questionsAnswered} / {totalQuestions}</span>
+              </div>
+              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${(questionsAnswered / totalQuestions) * 100}%` }} />
+              </div>
+            </div>
+            
+            <div className="mb-6 flex justify-between items-center text-sm">
+              <span className="text-zinc-500 font-medium">Difficulty</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-bold border ${difficultyConfig.bg} ${difficultyConfig.color} ${difficultyConfig.border}`}>
+                {difficultyConfig.label}
+              </span>
+            </div>
+
+            <div className="mb-6 flex justify-between items-center text-sm">
+              <span className="text-zinc-500 font-medium">Est. Remaining</span>
+              <span className="text-zinc-300 font-medium">~{questionsRemaining * 2} min</span>
+            </div>
+
             <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4" /> Live Score
             </h3>
@@ -352,34 +376,33 @@ function InterviewContent() {
         {/* MIDDLE CANVAS: Main Interview */}
         <div className="flex-1 flex flex-col p-6 lg:p-12 h-[calc(100vh-2rem)] overflow-y-auto w-full max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
+          <div className="flex justify-between items-end mb-8">
+            <div className="space-y-2">
               <h1 className="text-2xl font-bold text-white tracking-tight">AI Interview Coach</h1>
-              <p className="text-sm text-zinc-400 mt-1">Practice Mode</p>
+              <p className="text-sm text-zinc-400">Practice Mode</p>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${difficultyConfig.bg} ${difficultyConfig.color} ${difficultyConfig.border} border`}>
+                Difficulty: {difficultyConfig.label}
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${difficultyConfig.bg} ${difficultyConfig.color} ${difficultyConfig.border} border`}>
-                {difficultyConfig.label}
-              </span>
-
-              <button
-                onClick={handleEndInterviewClick}
-                disabled={isAIThinking || loading}
-                className="p-2 rounded-full border bg-zinc-900 border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-colors xl:hidden"
-                title="End Interview"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-
               <button
                 onClick={() => {
                   if (isTtsEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
                   setIsTtsEnabled(!isTtsEnabled);
                 }}
-                className={`p-2 rounded-full border transition-colors ${isTtsEnabled ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+                className={`p-2 rounded-full border transition-colors flex items-center justify-center ${isTtsEnabled ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
                 title={isTtsEnabled ? "Mute AI Voice" : "Enable AI Voice"}
               >
                 {isTtsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+              
+              <button
+                onClick={handleEndInterviewClick}
+                disabled={isAIThinking || loading}
+                className="flex items-center gap-2 p-2 px-4 rounded-full border bg-zinc-900 border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-colors"
+                title="End Interview"
+              >
+                <LogOut className="w-4 h-4" /> <span className="text-sm font-bold hidden sm:inline">Exit</span>
               </button>
             </div>
           </div>
@@ -507,54 +530,72 @@ function InterviewContent() {
                   animate={{ opacity: 1, x: 0 }}
                   className="flex flex-col flex-1 space-y-6"
                 >
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 shadow-xl">
-                    <div className="flex justify-between items-start mb-8">
-                      <div>
-                        <h3 className="text-xl font-bold text-white mb-2">Evaluation</h3>
-                        <p className="text-zinc-400 text-sm">Feedback on your response</p>
-                      </div>
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                        <span className="text-2xl font-black text-indigo-400">{evaluation.score}</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                      <div>
-                        <h4 className="flex items-center gap-2 text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4">
-                          <CheckCircle className="w-4 h-4" /> Strengths
-                        </h4>
-                        <ul className="space-y-3">
-                          {evaluation.strengths.length > 0 ? evaluation.strengths.map((s, i) => (
-                            <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
-                              <span className="text-emerald-500/50 mt-1 shrink-0">•</span>
-                              <span className="break-words min-w-0">{s}</span>
-                            </li>
-                          )) : <li className="text-sm text-zinc-500 italic">No clear strengths identified.</li>}
-                        </ul>
-                      </div>
-                      <div>
-                        <h4 className="flex items-center gap-2 text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">
-                          <AlertCircle className="w-4 h-4" /> Weaknesses
-                        </h4>
-                        <ul className="space-y-3">
-                          {evaluation.weaknesses.length > 0 ? evaluation.weaknesses.map((w, i) => (
-                            <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
-                              <span className="text-amber-500/50 mt-1 shrink-0">•</span>
-                              <span className="break-words min-w-0">{w}</span>
-                            </li>
-                          )) : <li className="text-sm text-zinc-500 italic">No major weaknesses identified.</li>}
-                        </ul>
-                      </div>
-                    </div>
-
-                    {evaluation.ideal_answer && (
-                      <div className="pt-8 border-t border-zinc-800">
-                        <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-4">Ideal Answer Approach</h4>
-                        <div className="text-sm text-zinc-300 leading-relaxed bg-black/30 p-6 rounded-2xl border border-zinc-800/50 prose prose-invert prose-sm max-w-none break-words">
-                          <ReactMarkdown>{evaluation.ideal_answer}</ReactMarkdown>
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 shadow-xl transition-all duration-300">
+                    <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsEvaluationExpanded(!isEvaluationExpanded)}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                          <CheckCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">Answer Evaluated</h3>
+                          <p className="text-zinc-400 text-sm">Score: <span className="text-white font-bold">{evaluation.score}/10</span></p>
                         </div>
                       </div>
-                    )}
+                      <div className="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                        {isEvaluationExpanded ? "Hide Detailed Feedback ▲" : "View Detailed Feedback ▼"}
+                      </div>
+                    </div>
+
+                    <AnimatePresence>
+                      {isEvaluationExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-8 mt-6 border-t border-zinc-800">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                              <div>
+                                <h4 className="flex items-center gap-2 text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4">
+                                  <CheckCircle className="w-4 h-4" /> Strengths
+                                </h4>
+                                <ul className="space-y-3">
+                                  {evaluation.strengths.length > 0 ? evaluation.strengths.map((s, i) => (
+                                    <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
+                                      <span className="text-emerald-500/50 mt-1 shrink-0">•</span>
+                                      <span className="break-words min-w-0">{s}</span>
+                                    </li>
+                                  )) : <li className="text-sm text-zinc-500 italic">No clear strengths identified.</li>}
+                                </ul>
+                              </div>
+                              <div>
+                                <h4 className="flex items-center gap-2 text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">
+                                  <AlertCircle className="w-4 h-4" /> Weaknesses
+                                </h4>
+                                <ul className="space-y-3">
+                                  {evaluation.weaknesses.length > 0 ? evaluation.weaknesses.map((w, i) => (
+                                    <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
+                                      <span className="text-amber-500/50 mt-1 shrink-0">•</span>
+                                      <span className="break-words min-w-0">{w}</span>
+                                    </li>
+                                  )) : <li className="text-sm text-zinc-500 italic">No major weaknesses identified.</li>}
+                                </ul>
+                              </div>
+                            </div>
+
+                            {evaluation.ideal_answer && (
+                              <div className="pt-8 border-t border-zinc-800">
+                                <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-4">Ideal Answer Approach</h4>
+                                <div className="text-sm text-zinc-300 leading-relaxed bg-black/30 p-6 rounded-2xl border border-zinc-800/50 prose prose-invert prose-sm max-w-none break-words">
+                                  <ReactMarkdown>{evaluation.ideal_answer}</ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   <div className="flex justify-end mt-6 mb-8 pb-4">
