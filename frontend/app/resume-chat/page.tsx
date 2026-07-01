@@ -7,7 +7,7 @@ import DocumentUpload from "@/components/DocumentUpload";
 import ReactMarkdown from "react-markdown";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { getResumes, ResumeResponse } from "@/lib/api-client";
+import { getResumes, ResumeResponse, managedFetch } from "@/lib/api-client";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -19,6 +19,7 @@ type Message = {
 };
 
 import { Suspense } from "react";
+import BackToTop from "@/components/ui/BackToTop";
 
 function ResumeChatContent() {
   const { data: session, status } = useSession();
@@ -84,14 +85,14 @@ function ResumeChatContent() {
         const uploadFile = file || new File([text], "pasted_resume.txt", { type: "text/plain" });
         const formData = new FormData();
         formData.append("file", uploadFile);
-        res = await fetch(`${API_BASE_URL}/resume-chat/upload`, {
+        res = await managedFetch(`${API_BASE_URL}/resume-chat/upload`, {
           method: "POST",
           headers, // Include auth if available (though endpoint doesn't require it, good practice)
           body: formData,
         });
       } else {
         headers["Content-Type"] = "application/json";
-        res = await fetch(`${API_BASE_URL}/resume-chat/select`, {
+        res = await managedFetch(`${API_BASE_URL}/resume-chat/select`, {
           method: "POST",
           headers,
           body: JSON.stringify({ resume_id: selectedResumeId }),
@@ -131,7 +132,7 @@ function ResumeChatContent() {
     setIsTyping(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/resume-chat/ask`, {
+      const res = await managedFetch(`${API_BASE_URL}/resume-chat/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, query }),
@@ -271,7 +272,7 @@ function ResumeChatContent() {
             </div>
 
             {/* Chat History */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+            <div id="chat-scroll-container" className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-4 duration-300`}>
                   <div className={`flex gap-3 md:gap-4 max-w-[90%] md:max-w-[80%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
@@ -341,8 +342,11 @@ function ResumeChatContent() {
 
 export default function ResumeChatPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>}>
-      <ResumeChatContent />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>}>
+        <ResumeChatContent />
+      </Suspense>
+      <BackToTop containerId="chat-scroll-container" />
+    </>
   );
 }

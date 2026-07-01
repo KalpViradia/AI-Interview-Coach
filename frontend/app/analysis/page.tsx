@@ -9,6 +9,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { SessionCreateResponse } from "@/lib/api-client";
 import Link from "next/link";
 import AnalysisSkeleton from "@/components/skeletons/AnalysisSkeleton";
+import BackToTop from "@/components/ui/BackToTop";
 
 function AnalysisContent() {
   const router = useRouter();
@@ -275,12 +276,15 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <Suspense fallback={
-      <SidebarLayout>
-        <AnalysisSkeleton />
-      </SidebarLayout>
-    }>
-      <AnalysisContent />
-    </Suspense>
+    <>
+      <Suspense fallback={
+        <SidebarLayout>
+          <AnalysisSkeleton />
+        </SidebarLayout>
+      }>
+        <AnalysisContent />
+      </Suspense>
+      <BackToTop />
+    </>
   );
 }

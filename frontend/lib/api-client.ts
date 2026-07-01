@@ -10,11 +10,73 @@ import { getSession } from "next-auth/react";
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+// -----------------------------------------------------------------------------
+// Wakeup Manager
+// -----------------------------------------------------------------------------
+class WakeupManager {
+  private pendingCount = 0;
+  private timeoutId: NodeJS.Timeout | null = null;
+  private isVisible = false;
+  private listeners = new Set<(visible: boolean) => void>();
+
+  subscribe = (listener: (visible: boolean) => void) => {
+    this.listeners.add(listener);
+    listener(this.isVisible);
+    return () => this.listeners.delete(listener);
+  };
+
+  private notify = () => {
+    this.listeners.forEach((l) => l(this.isVisible));
+  };
+
+  onRequestStart = () => {
+    this.pendingCount++;
+    if (this.pendingCount === 1) {
+      this.timeoutId = setTimeout(() => {
+        this.isVisible = true;
+        this.notify();
+      }, 3000);
+    }
+  };
+
+  onRequestEnd = () => {
+    this.pendingCount = Math.max(0, this.pendingCount - 1);
+    if (this.pendingCount === 0) {
+      if (this.timeoutId) {
+        clearTimeout(this.timeoutId);
+        this.timeoutId = null;
+      }
+      if (this.isVisible) {
+        this.isVisible = false;
+        this.notify();
+      }
+    }
+  };
+}
+
+export const wakeupManager = new WakeupManager();
+
 /**
- * Get the current auth token from NextAuth session.
- * Returns the raw JWT token string if authenticated, null otherwise.
+ * A wrapper around global fetch that tracks backend requests for WakeupManager.
  */
-// Removed unused getAuthToken
+export async function managedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === "string" ? input : (input instanceof Request ? input.url : input.toString());
+  
+  const isBackendRequest = 
+    url.includes(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") || 
+    url.includes(API_BASE_URL);
+
+  if (!isBackendRequest) {
+    return fetch(input, init);
+  }
+
+  wakeupManager.onRequestStart();
+  try {
+    return await fetch(input, init);
+  } finally {
+    wakeupManager.onRequestEnd();
+  }
+}
 
 /**
  * Generic fetch wrapper with error handling and automatic auth token attachment.
@@ -49,7 +111,7 @@ export async function apiFetch<T>(
 
   const { skipAuth: _skipAuth, ...fetchOptions } = options || {};
 
-  const response = await fetch(url, {
+  const response = await managedFetch(url, {
     ...fetchOptions,
     headers,
   });
@@ -69,7 +131,7 @@ export async function apiFetch<T>(
  */
 export async function healthCheck() {
   const url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/health";
-  const response = await fetch(url);
+  const response = await managedFetch(url);
   if (!response.ok) throw new Error("Health check failed");
   return response.json();
 }
@@ -210,7 +272,7 @@ export async function uploadDocument(file: File, docType: 'resume' | 'jd' = 'res
     // Proceed without auth
   }
 
-  const response = await fetch(url, {
+  const response = await managedFetch(url, {
     method: "POST",
     body: formData,
     headers,
@@ -282,7 +344,7 @@ export async function uploadToVault(file: File, displayName?: string): Promise<R
     }
   } catch {}
 
-  const response = await fetch(url, {
+  const response = await managedFetch(url, {
     method: "POST",
     body: formData,
     headers,

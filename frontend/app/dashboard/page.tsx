@@ -15,6 +15,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { FileText, Target, Award, Calendar, AlertTriangle, ArrowRight, Database, Users, Code, Lightbulb, ChevronRight, Infinity as InfinityIcon } from "lucide-react";
 import { getSessions } from "@/lib/api-client";
 import DashboardSkeleton from "@/components/skeletons/DashboardSkeleton";
+import BackToTop from "@/components/ui/BackToTop";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -654,6 +655,7 @@ const TopicTooltip = ({ active, payload, label }: any) => {
 
         </div>
       </div>
+      <BackToTop />
     </SidebarLayout>
   );
 }

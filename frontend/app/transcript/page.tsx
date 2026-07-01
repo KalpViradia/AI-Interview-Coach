@@ -10,6 +10,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import TranscriptSkeleton from "@/components/skeletons/TranscriptSkeleton";
+import BackToTop from "@/components/ui/BackToTop";
 
 function TranscriptContent() {
   const router = useRouter();
@@ -212,12 +213,15 @@ function TranscriptContent() {
 
 export default function TranscriptPage() {
   return (
-    <Suspense fallback={
-      <SidebarLayout>
-        <TranscriptSkeleton />
-      </SidebarLayout>
-    }>
-      <TranscriptContent />
-    </Suspense>
+    <>
+      <Suspense fallback={
+        <SidebarLayout>
+          <TranscriptSkeleton />
+        </SidebarLayout>
+      }>
+        <TranscriptContent />
+      </Suspense>
+      <BackToTop />
+    </>
   );
 }

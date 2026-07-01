@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { LayoutTemplate, ZoomIn, ZoomOut, Edit3 } from "lucide-react";
 import { templates, TemplateId } from "./templates";
 import { parseResumeClientSide } from "@/lib/resume-parser";
-import { ParsedResume } from "@/lib/api-client";
+import { ParsedResume, managedFetch } from "@/lib/api-client";
 import EditorTab from "./EditorTab";
 
 interface DesignTabProps {
@@ -35,14 +35,14 @@ export default function DesignTab({ resumeId, extractedText, initialParsedData }
     try {
       // Need a proper token fetch if we're doing it inline, but best to use a lib function.
       // We'll write the fetch manually here using the same pattern as api-client
-      const jwtRes = await fetch("/api/auth/token");
+      const jwtRes = await managedFetch("/api/auth/token");
       let token = "";
       if (jwtRes.ok) {
         const data = await jwtRes.json();
         token = data.token;
       }
       
-      const res = await fetch(`http://localhost:8000/api/resumes/${resumeId}/content`, {
+      const res = await managedFetch(`http://localhost:8000/api/resumes/${resumeId}/content`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

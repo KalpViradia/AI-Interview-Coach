@@ -225,7 +225,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="flex-1 h-screen overflow-y-auto bg-black pt-16 md:pt-0">
+      <div id="main-scroll-container" className="flex-1 h-screen overflow-y-auto bg-black pt-16 md:pt-0">
         <main className="h-full">
           {children}
         </main>

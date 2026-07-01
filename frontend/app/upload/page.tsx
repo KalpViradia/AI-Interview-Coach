@@ -4,7 +4,7 @@ import { useState, useCallback, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Briefcase, Loader2, ArrowRight, UploadCloud, CheckCircle2, User, Target, FileSearch } from "lucide-react";
-import { uploadDocument, getResumes, ResumeResponse } from "@/lib/api-client";
+import { uploadDocument, getResumes, ResumeResponse, managedFetch } from "@/lib/api-client";
 import DocumentUpload from "@/components/DocumentUpload";
 import SidebarLayout from "@/components/SidebarLayout";
 import LoadingProcess from "@/components/LoadingProcess";
@@ -114,7 +114,7 @@ function UploadContent() {
         payload.resume_text = ""; // Will be fetched on backend
       }
 
-      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/sessions", {
+      const response = await managedFetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/sessions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
