@@ -19,7 +19,7 @@ import {
   Library
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -41,6 +41,13 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add("has-sidebar");
+    return () => {
+      document.body.classList.remove("has-sidebar");
+    };
+  }, []);
 
   // If loading, return null to prevent any content flash
   if (status === "loading") {

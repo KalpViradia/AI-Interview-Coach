@@ -13,7 +13,7 @@ export default function BackToTop({ containerId }: { containerId?: string }) {
     const handleScroll = (e: Event) => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const target = e.target as HTMLElement | Document;
+          const target = e.target as HTMLElement | Document | Window;
           
           let isTarget = false;
           let scrollTop = 0;
