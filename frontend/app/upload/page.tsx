@@ -11,6 +11,7 @@ import LoadingProcess from "@/components/LoadingProcess";
 import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
 import { useSession } from "next-auth/react";
 import { RateLimitBanner } from "@/components/RateLimitBanner";
+import { useDialog } from "@/components/ui/dialog/useDialog";
 
 type InterviewType = "general" | "resume_based" | "job_specific" | "ats_check";
 
@@ -18,6 +19,7 @@ function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const { showPrompt } = useDialog();
   
   const isAtsMode = searchParams.get("mode") === "ats";
   
@@ -37,6 +39,12 @@ function UploadContent() {
   const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number} | null>(null);
 
   const isAuthenticated = status === "authenticated";
+
+  const needsJd = interviewType === "job_specific" || interviewType === "ats_check";
+  const resumeReady = (resumeSource === "vault" && !!selectedResumeId) || (resumeSource === "upload" && (!!resumeFile || !!(resumeText?.trim())));
+  const jdReady = !!jdFile || !!(jdText?.trim());
+  const isReady = resumeReady && (!needsJd || jdReady);
+  const isProcessing = pdfLoadingResume || pdfLoadingJd || loading;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -89,75 +97,93 @@ function UploadContent() {
   };
 
   const handleStartInterview = async () => {
-    const needsJd = interviewType === "job_specific" || interviewType === "ats_check";
-    
-    if (resumeSource === "upload" && !resumeText.trim()) {
-      setError("Please provide a resume.");
-      return;
-    }
-    if (resumeSource === "vault" && !selectedResumeId) {
-      setError("Please select a resume from your vault.");
-      return;
-    }
-    if (needsJd && !jdText.trim()) {
-      setError("Please provide a job description for this interview type.");
-      return;
-    }
+    if (!isReady || isProcessing) return;
 
-    setLoading(true);
-    setError("");
+    const doSubmit = async (finalResumeText: string) => {
+      setLoading(true);
+      setError("");
 
-    try {
-      const payload: Record<string, string> = {
-        interview_type: interviewType,
-        jd_text: needsJd ? jdText : ""
-      };
-      
-      if (resumeSource === "upload") {
-        payload.resume_text = resumeText;
-      } else {
-        payload.resume_id = selectedResumeId;
-        payload.resume_text = ""; // Will be fetched on backend
-      }
-
-      const response = await managedFetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/sessions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(isAuthenticated ? { "Authorization": `Bearer ${await fetch("/api/auth/token").then(r => r.json()).then(d => d.token).catch(()=>"")}` } : {})
-        },
-        body: JSON.stringify(payload)
-      }).then(async r => {
-        if (!r.ok) {
-           const errData = await r.json().catch(() => ({}));
-           if (r.status === 429) {
-             throw new APIError(429, errData.detail?.message || "Rate limit", errData.detail);
-           }
-           throw new Error(errData.detail || "Failed to start session");
+      try {
+        const payload: Record<string, string> = {
+          interview_type: interviewType,
+          jd_text: needsJd ? jdText : ""
+        };
+        
+        if (resumeSource === "upload") {
+          payload.resume_text = finalResumeText;
+        } else {
+          payload.resume_id = selectedResumeId;
+          payload.resume_text = ""; // Will be fetched on backend
         }
-        return r.json();
-      });
-      
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(`session_${response.session_id}`, JSON.stringify(response));
-      }
-      
-      if (interviewType === "job_specific" || interviewType === "ats_check") {
-        router.push(`/analysis?session_id=${response.session_id}${interviewType === 'ats_check' ? "&mode=ats" : ""}`);
-      } else {
-        router.push(`/interview?session_id=${response.session_id}`);
-      }
-    } catch (err: unknown) {
-      if (err instanceof APIError && err.status === 429) {
-        setRateLimitData({
-          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
-          retryAfter: err.data?.retry_after || 20
+
+        const response = await managedFetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/sessions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(isAuthenticated ? { "Authorization": `Bearer ${await fetch("/api/auth/token").then(r => r.json()).then(d => d.token).catch(()=>"")}` } : {})
+          },
+          body: JSON.stringify(payload)
+        }).then(async r => {
+          if (!r.ok) {
+             const errData = await r.json().catch(() => ({}));
+             if (r.status === 429) {
+               throw new APIError(429, errData.detail?.message || "Rate limit", errData.detail);
+             }
+             throw new Error(errData.detail || "Failed to start session");
+          }
+          return r.json();
         });
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
+        
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(`session_${response.session_id}`, JSON.stringify(response));
+        }
+        
+        if (interviewType === "job_specific" || interviewType === "ats_check") {
+          router.push(`/analysis?session_id=${response.session_id}${interviewType === 'ats_check' ? "&mode=ats" : ""}`);
+        } else {
+          router.push(`/interview?session_id=${response.session_id}`);
+        }
+      } catch (err: unknown) {
+        if (err instanceof APIError && err.status === 429) {
+          setRateLimitData({
+            message: err.data?.message || "The AI service is temporarily busy. Please try again.",
+            retryAfter: err.data?.retry_after || 20
+          });
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
+        }
+        setLoading(false);
       }
-      setLoading(false);
+    };
+
+    if (resumeSource === "upload" && !resumeFile && resumeText?.trim()) {
+      showPrompt({
+        title: "Resume Name",
+        message: "Please enter a name for this pasted resume.",
+        defaultValue: "Pasted Resume",
+        confirmText: "Continue",
+        onConfirm: async (filename) => {
+          let finalName = filename || "Pasted Resume";
+          if (!finalName.toLowerCase().endsWith('.txt')) {
+             finalName += '.txt';
+          }
+          const uploadFile = new File([resumeText], finalName, { type: "text/plain" });
+          if (isAuthenticated) {
+             setLoading(true);
+             try {
+                await uploadDocument(uploadFile, 'resume');
+             } catch (e) {
+                // ignore
+             }
+          }
+          await doSubmit(resumeText);
+        },
+        onCancel: () => {}
+      });
+      return;
     }
+
+    await doSubmit(resumeText);
   };
 
   const handleRetryRateLimit = () => {
@@ -332,6 +358,16 @@ function UploadContent() {
                   )}
                 </div>
 
+                {(!resumeReady && !pdfLoadingResume) && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-sm">
+                    <span className="text-xl leading-none">ℹ️</span>
+                    <div>
+                      <p className="font-semibold text-indigo-300 mb-1">Resume Required</p>
+                      <p className="text-zinc-400">Select a saved resume from your vault, upload a new file, or paste your resume text to continue.</p>
+                    </div>
+                  </div>
+                )}
+
                 {(interviewType === "job_specific" || interviewType === "ats_check") && (
                   <div className="space-y-4 pt-8 border-t border-zinc-800">
                     <h2 className="text-xl font-semibold text-white mb-4">
@@ -354,6 +390,16 @@ function UploadContent() {
                   </div>
                 )}
 
+                {(needsJd && !jdReady && !pdfLoadingJd) && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-sm">
+                    <span className="text-xl leading-none">ℹ️</span>
+                    <div>
+                      <p className="font-semibold text-indigo-300 mb-1">Job Description Required</p>
+                      <p className="text-zinc-400">Please provide a job description for this interview type.</p>
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
                     {error}
@@ -363,11 +409,17 @@ function UploadContent() {
                 <div className="flex justify-end pt-8">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="group relative inline-flex items-center gap-2 rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-500 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-indigo-600 cursor-pointer"
+                    disabled={!isReady || isProcessing}
+                    className="group relative inline-flex items-center gap-2 rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-500 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-indigo-600"
                   >
-                    {isAtsMode ? "Run ATS Check" : "Start Mock Interview"}
-                    <ArrowRight className="w-5 h-5" />
+                    {isProcessing ? (
+                      <><Loader2 className="w-5 h-5 animate-spin" /> {pdfLoadingResume || pdfLoadingJd ? "Extracting..." : "Preparing Session..."}</>
+                    ) : (
+                      <>
+                        {isAtsMode ? "Run ATS Check" : "Start Mock Interview"}
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

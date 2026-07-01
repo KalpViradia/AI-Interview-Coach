@@ -44,6 +44,9 @@ function ResumeChatContent() {
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const resumeReady = (resumeSource === "vault" && !!selectedResumeId) || (resumeSource === "upload" && (!!file || !!(text?.trim())));
+  const isReady = resumeReady;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -64,17 +67,8 @@ function ResumeChatContent() {
 
   const handleStartChat = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isReady || isUploading) return;
     setError("");
-
-    if (resumeSource === "upload" && !file && !text.trim()) {
-      setError("Please select a file to upload or paste your resume text.");
-      return;
-    }
-    
-    if (resumeSource === "vault" && !selectedResumeId) {
-      setError("Please select a resume from your vault.");
-      return;
-    }
 
     setIsUploading(true);
 
@@ -112,7 +106,7 @@ function ResumeChatContent() {
           ]);
         };
 
-        if (!file && text.trim()) {
+        if (!file && text?.trim()) {
           setIsUploading(false); // pause loading for prompt
           showPrompt({
             title: "Resume Name",
@@ -343,9 +337,17 @@ function ResumeChatContent() {
                       onTextChange={setText}
                       onDropFile={async (f) => { setFile(f); }}
                       isLoading={false}
-                      error={error}
-                      onClearError={() => setError("")}
                     />
+                  </div>
+                )}
+
+                {!resumeReady && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-sm">
+                    <span className="text-xl leading-none">ℹ️</span>
+                    <div>
+                      <p className="font-semibold text-indigo-300 mb-1">Resume Required</p>
+                      <p className="text-zinc-400">Select a saved resume from your vault, upload a new file, or paste your resume text to begin.</p>
+                    </div>
                   </div>
                 )}
 
@@ -357,8 +359,8 @@ function ResumeChatContent() {
 
                 <button
                   type="submit"
-                  disabled={(resumeSource === "upload" && !file && !text.trim()) || (resumeSource === "vault" && !selectedResumeId) || isUploading}
-                  className="w-full py-4 rounded-xl font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(79,70,229,0.3)] flex justify-center items-center gap-2"
+                  disabled={!isReady || isUploading}
+                  className="w-full py-4 rounded-xl font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(79,70,229,0.3)] disabled:shadow-none flex justify-center items-center gap-2"
                 >
                   {isUploading ? (
                     <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>

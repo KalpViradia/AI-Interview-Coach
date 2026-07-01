@@ -65,6 +65,7 @@ Recent Interview History (last 3 Q&A scores for context):
 
 Your tasks:
 1. Evaluate the answer thoroughly (score 1-10, strengths, weaknesses, suggestion, ideal_answer).
+   - CRITICAL: Format the `ideal_answer` using proper Markdown formatting. Use bullet points or numbered lists with clear newline separation for each point to ensure readability.
 2. Decide the NEXT difficulty level (1-5 scale):
    - Score >= 8: increase difficulty by 1 (max 5)
    - Score 4-7: keep same difficulty
@@ -106,7 +107,7 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
         try:
             ideal_prompt = PromptTemplate.from_template(
                 "You are an expert technical interviewer. The candidate skipped this question:\n\n"
-                "{question}\n\nProvide a concise, highly effective ideal answer."
+                "{question}\n\nProvide a concise, highly effective ideal answer. Format it using proper Markdown (use bullet points or numbered lists with clear newline separation)."
             )
             ideal_chain = ideal_prompt | llm
             ideal_result = await with_retry(ideal_chain.ainvoke, {"question": question_text})

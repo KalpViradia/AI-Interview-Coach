@@ -269,7 +269,7 @@ function InterviewContent() {
     }
   };
 
-  const questionsAnswered = questionNumber - 1;
+  const questionsAnswered = questionNumber - 1 + (hasSubmittedCurrent ? 1 : 0);
   const totalQuestions = 10;
   const questionsRemaining = totalQuestions - questionsAnswered;
 
