@@ -27,6 +27,7 @@ Output state keys:
 """
 
 import random
+import time
 from fastapi import HTTPException
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -34,6 +35,7 @@ from app.schemas.agent_schemas import InterviewState, Question
 from app.tools.vector_store import chroma_retrieval_tool
 from app.core.config import get_settings
 from app.core.gemini_retry import with_retry
+from app.core.logger import log_agent_execution
 
 settings = get_settings()
 
@@ -125,6 +127,7 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
     )
 
     try:
+        start_time = time.time()
         question: Question = await with_retry(
             chain.ainvoke,
             {
@@ -136,11 +139,35 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
                 "retrieved_questions": retrieved_str,
             }
         )
+        exec_time = time.time() - start_time
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Interviewer Smart",
+            execution_time=exec_time,
+            model="gemini-2.5-flash",
+            success=True,
+            final_status="OK"
+        )
+    except HTTPException as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Interviewer Smart",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"{e.status_code} {e.detail.get('error', 'ERROR') if isinstance(e.detail, dict) else e.detail}"
+        )
+        raise e
     except Exception as e:
-        # Fall back to ChromaDB/hardcoded questions on any error (including rate limits)
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Interviewer Smart",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"500 UNKNOWN_ERROR: {str(e)}"
+        )
         print(f"InterviewerSmart Error (Fallback triggered): {e}")
-        # Non-rate-limit error: fall back to ChromaDB/hardcoded questions
-        print(f"InterviewerSmart Error: {e}")
 
         fallback_candidates = [q for q in retrieved if q["text"] not in history_texts]
         if fallback_candidates:

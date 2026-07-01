@@ -58,9 +58,11 @@ async def with_retry(async_fn, *args, max_retries: int = 4, **kwargs):
     # All retries failed
     raise HTTPException(
         status_code=429,
-        detail=(
-            "Google Gemini API rate limit reached. "
-            "The system retried automatically but the quota is still exhausted. "
-            "Please wait a minute before trying again."
-        )
+        detail={
+            "error": "RATE_LIMIT",
+            "provider": "Google Gemini",
+            "message": "The AI service has temporarily reached its request limit. Please wait about 20-30 seconds before trying again.",
+            "retry_after": 20,
+            "recoverable": True
+        }
     )

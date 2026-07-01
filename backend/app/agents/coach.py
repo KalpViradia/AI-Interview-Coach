@@ -9,9 +9,11 @@ Side effect: writes final report row to Postgres
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from fastapi import HTTPException
+import time
 from app.schemas.agent_schemas import InterviewState, SessionReport
 from app.core.config import get_settings
 from app.core.gemini_retry import with_retry
+from app.core.logger import log_agent_execution
 
 settings = get_settings()
 
@@ -71,6 +73,7 @@ async def report_node(state: InterviewState) -> dict:
     hist_str = ", ".join(map(str, historical_scores)) if historical_scores else "No historical data available."
 
     try:
+        start_time = time.time()
         report: SessionReport = await with_retry(
             chain.ainvoke,
             {
@@ -78,11 +81,36 @@ async def report_node(state: InterviewState) -> dict:
                 "historical_scores": hist_str
             }
         )
+        exec_time = time.time() - start_time
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Coach Agent",
+            execution_time=exec_time,
+            model="gemini-2.5-flash",
+            success=True,
+            final_status="OK"
+        )
         return {"report": report.model_dump()}
         
     except HTTPException as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Coach Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"{e.status_code} {e.detail.get('error', 'ERROR') if isinstance(e.detail, dict) else e.detail}"
+        )
         raise e
     except Exception as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Coach Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"500 UNKNOWN_ERROR: {str(e)}"
+        )
         print(f"Report Error: {e}")
         # Robust Dynamic Fallback with predictive scoring
         if historical_scores and len(historical_scores) > 1:

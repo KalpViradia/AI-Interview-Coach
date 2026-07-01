@@ -73,7 +73,21 @@ async def upload_resume_for_chat(file: UploadFile = File(...)):
         await rag_service.ingest_resume(session_id, text)
         
         return {"session_id": session_id, "message": "Resume successfully processed and ready for chat."}
+    except HTTPException:
+        raise
     except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service is temporarily busy. Please retry in a few seconds.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/select")
@@ -111,6 +125,18 @@ async def select_resume_for_chat(
     except HTTPException:
         raise
     except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service is temporarily busy. Please retry in a few seconds.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/ask", response_model=AskQueryResponse)
@@ -136,8 +162,19 @@ async def ask_resume_query(request: AskQueryRequest):
         # Store in Cache
         query_cache.put(cache_key, answer)
         return AskQueryResponse(answer=answer, cached=False)
+    except HTTPException:
+        raise
     except Exception as e:
-        error_msg = str(e).lower()
-        if "429" in error_msg or "quota" in error_msg or "exhausted" in error_msg:
-            raise HTTPException(status_code=429, detail="Google Gemini API rate limit reached. Please wait a minute before trying again.")
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "exhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service is temporarily busy. Please retry in a few seconds.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
         raise HTTPException(status_code=500, detail="An internal server error occurred while processing your request.")

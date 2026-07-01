@@ -13,7 +13,9 @@ from fastapi import HTTPException
 from app.schemas.agent_schemas import InterviewState
 from app.core.config import get_settings
 from app.core.gemini_retry import with_retry
+from app.core.logger import log_agent_execution
 import json
+import time
 
 settings = get_settings()
 
@@ -75,6 +77,7 @@ async def roadmap_node(state: InterviewState) -> dict:
     jd_text = state.get("jd_text", "")
     
     try:
+        start_time = time.time()
         response = await with_retry(
             chain.ainvoke,
             {"weak_topics": weak_topics_str, "jd": jd_text}
@@ -94,10 +97,36 @@ async def roadmap_node(state: InterviewState) -> dict:
             report["roadmap"] = roadmap
         else:
             raise ValueError("Output was not a list")
+        
+        exec_time = time.time() - start_time
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Roadmap Agent",
+            execution_time=exec_time,
+            model="gemini-2.5-flash",
+            success=True,
+            final_status="OK"
+        )
             
     except HTTPException as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Roadmap Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"{e.status_code} {e.detail.get('error', 'ERROR') if isinstance(e.detail, dict) else e.detail}"
+        )
         raise e
     except Exception as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Roadmap Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"500 UNKNOWN_ERROR: {str(e)}"
+        )
         print(f"Roadmap Error: {e}")
         # Robust Fallback
         report["roadmap"] = [

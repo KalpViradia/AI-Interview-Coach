@@ -4,12 +4,13 @@ import { useState, useCallback, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Briefcase, Loader2, ArrowRight, UploadCloud, CheckCircle2, User, Target, FileSearch } from "lucide-react";
-import { uploadDocument, getResumes, ResumeResponse, managedFetch } from "@/lib/api-client";
+import { uploadDocument, getResumes, ResumeResponse, managedFetch, APIError } from "@/lib/api-client";
 import DocumentUpload from "@/components/DocumentUpload";
 import SidebarLayout from "@/components/SidebarLayout";
 import LoadingProcess from "@/components/LoadingProcess";
 import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
 import { useSession } from "next-auth/react";
+import { RateLimitBanner } from "@/components/RateLimitBanner";
 
 type InterviewType = "general" | "resume_based" | "job_specific" | "ats_check";
 
@@ -33,6 +34,7 @@ function UploadContent() {
   const [pdfLoadingResume, setPdfLoadingResume] = useState(false);
   const [pdfLoadingJd, setPdfLoadingJd] = useState(false);
   const [error, setError] = useState("");
+  const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number} | null>(null);
 
   const isAuthenticated = status === "authenticated";
 
@@ -52,7 +54,8 @@ function UploadContent() {
 
   useEffect(() => {
     if (isAtsMode) {
-      setInterviewType("ats_check");
+      const timeout = setTimeout(() => setInterviewType("ats_check"), 0);
+      return () => clearTimeout(timeout);
     }
   }, [isAtsMode]);
 
@@ -82,7 +85,10 @@ function UploadContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    handleStartInterview();
+  };
+
+  const handleStartInterview = async () => {
     const needsJd = interviewType === "job_specific" || interviewType === "ats_check";
     
     if (resumeSource === "upload" && !resumeText.trim()) {
@@ -102,7 +108,7 @@ function UploadContent() {
     setError("");
 
     try {
-      const payload: any = {
+      const payload: Record<string, string> = {
         interview_type: interviewType,
         jd_text: needsJd ? jdText : ""
       };
@@ -121,8 +127,14 @@ function UploadContent() {
           ...(isAuthenticated ? { "Authorization": `Bearer ${await fetch("/api/auth/token").then(r => r.json()).then(d => d.token).catch(()=>"")}` } : {})
         },
         body: JSON.stringify(payload)
-      }).then(r => {
-        if (!r.ok) throw new Error("Failed to start session");
+      }).then(async r => {
+        if (!r.ok) {
+           const errData = await r.json().catch(() => ({}));
+           if (r.status === 429) {
+             throw new APIError(429, errData.detail?.message || "Rate limit", errData.detail);
+           }
+           throw new Error(errData.detail || "Failed to start session");
+        }
         return r.json();
       });
       
@@ -136,9 +148,21 @@ function UploadContent() {
         router.push(`/interview?session_id=${response.session_id}`);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
+      if (err instanceof APIError && err.status === 429) {
+        setRateLimitData({
+          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
+          retryAfter: err.data?.retry_after || 20
+        });
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
+      }
       setLoading(false);
     }
+  };
+
+  const handleRetryRateLimit = () => {
+    setRateLimitData(null);
+    handleStartInterview();
   };
 
   const renderInterviewTypeSelection = () => (
@@ -177,6 +201,16 @@ function UploadContent() {
 
   return (
     <SidebarLayout>
+      <RateLimitBanner 
+        show={!!rateLimitData} 
+        message={rateLimitData?.message || ""} 
+        retryAfter={rateLimitData?.retryAfter || 20} 
+        onRetry={handleRetryRateLimit}
+        onCancel={() => {
+          setRateLimitData(null);
+          setLoading(false);
+        }}
+      />
       <div className="min-h-screen bg-black text-zinc-50 flex flex-col items-center py-12 px-4 relative overflow-y-auto">
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>
         

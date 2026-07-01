@@ -20,6 +20,7 @@ Output state keys:
 """
 
 import random
+import time
 from typing import Optional
 from pydantic import BaseModel, Field
 from fastapi import HTTPException
@@ -28,6 +29,7 @@ from langchain_core.prompts import PromptTemplate
 from app.schemas.agent_schemas import InterviewState, Evaluation, Question
 from app.core.config import get_settings
 from app.core.gemini_retry import with_retry
+from app.core.logger import log_agent_execution
 
 settings = get_settings()
 
@@ -137,6 +139,7 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
     ) or "First question in this session."
 
     try:
+        start_time = time.time()
         result: EvaluatorCoachOutput = await with_retry(
             chain.ainvoke,
             {
@@ -146,6 +149,15 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
                 "answer": user_answer,
                 "history_summary": history_summary,
             }
+        )
+        exec_time = time.time() - start_time
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Evaluator Coach",
+            execution_time=exec_time,
+            model="gemini-2.5-flash",
+            success=True,
+            final_status="OK"
         )
 
         evaluation = Evaluation(
@@ -176,10 +188,24 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
         }
 
     except HTTPException as e:
-        # Re-raise explicit HTTPExceptions (like 429 from with_retry)
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Evaluator Coach",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"{e.status_code} {e.detail.get('error', 'ERROR') if isinstance(e.detail, dict) else e.detail}"
+        )
         raise e
     except Exception as e:
-        # This will only be hit if it's a non-429 error
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Evaluator Coach",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"500 UNKNOWN_ERROR: {str(e)}"
+        )
         print(f"EvaluatorCoach Error: {e}")
 
         # Length-based heuristic fallback

@@ -10,6 +10,17 @@ import { getSession } from "next-auth/react";
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+export class APIError extends Error {
+  status: number;
+  data: any;
+  constructor(status: number, message: string, data: any) {
+    super(message);
+    this.name = "APIError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // managedFetch
 // -----------------------------------------------------------------------------
@@ -62,9 +73,11 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `API error: ${response.status} ${response.statusText}`
-    );
+    const detail = error.detail || error;
+    const message = typeof detail === 'string' 
+      ? detail 
+      : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+    throw new APIError(response.status, message, detail);
   }
 
   return response.json();
@@ -224,7 +237,11 @@ export async function uploadDocument(file: File, docType: 'resume' | 'jd' = 'res
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || "Failed to upload document");
+    const detail = error.detail || error;
+    const message = typeof detail === 'string' 
+      ? detail 
+      : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+    throw new APIError(response.status, message, detail);
   }
 
   return response.json();
@@ -296,7 +313,11 @@ export async function uploadToVault(file: File, displayName?: string): Promise<R
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || "Failed to upload resume to vault");
+    const detail = error.detail || error;
+    const message = typeof detail === 'string' 
+      ? detail 
+      : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+    throw new APIError(response.status, message, detail);
   }
 
   return response.json();

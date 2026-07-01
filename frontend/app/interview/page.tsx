@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, CheckCircle, AlertCircle, ArrowRight, BrainCircuit, Mic, MicOff, Volume2, VolumeX, FastForward, Activity, LogOut, X, SkipForward } from "lucide-react";
-import { submitAnswer, getSessionState, getSessionTranscript, Question, Evaluation, SessionReport, TranscriptTurn } from "@/lib/api-client";
+import { submitAnswer, getSessionState, getSessionTranscript, Question, Evaluation, SessionReport, TranscriptTurn, APIError } from "@/lib/api-client";
 import ReactMarkdown from "react-markdown";
 import SidebarLayout from "@/components/SidebarLayout";
 import { InterviewSkeleton } from "@/components/Skeletons";
 import { useDialog } from "@/components/ui/dialog/useDialog";
+import { RateLimitBanner } from "@/components/RateLimitBanner";
 
 // Sequential loading stages (never loops)
 const THINKING_STAGES = [
@@ -58,6 +59,7 @@ function InterviewContent() {
   const { showConfirm } = useDialog();
   // Track whether current question's answer has been submitted
   const [hasSubmittedCurrent, setHasSubmittedCurrent] = useState(false);
+  const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number, pendingAction: 'submit' | 'end'} | null>(null);
 
   // Sequential thinking messages (no looping)
   useEffect(() => {
@@ -175,9 +177,28 @@ function InterviewContent() {
         }]);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to submit answer.");
+      if (err instanceof APIError && err.status === 429) {
+        setRateLimitData({
+          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
+          retryAfter: err.data?.retry_after || 20,
+          pendingAction: 'submit'
+        });
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to submit answer.");
+      }
     } finally {
       setIsAIThinking(false);
+    }
+  };
+
+  const handleRetryRateLimit = async () => {
+    if (!rateLimitData) return;
+    const action = rateLimitData.pendingAction;
+    setRateLimitData(null);
+    if (action === 'submit') {
+      await handleSubmit();
+    } else if (action === 'end') {
+      await handleConfirmEnd();
     }
   };
 
@@ -220,7 +241,15 @@ function InterviewContent() {
         router.push(`/report?session_id=${sessionId}`);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to end interview.");
+      if (err instanceof APIError && err.status === 429) {
+        setRateLimitData({
+          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
+          retryAfter: err.data?.retry_after || 20,
+          pendingAction: 'end'
+        });
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to end interview.");
+      }
       setIsAIThinking(false);
       setIsEnding(false);
     }
@@ -247,6 +276,18 @@ function InterviewContent() {
   if (loading || !question) {
     return (
       <SidebarLayout>
+        <RateLimitBanner 
+          show={!!rateLimitData} 
+          message={rateLimitData?.message || ""} 
+          retryAfter={rateLimitData?.retryAfter || 20} 
+          onRetry={handleRetryRateLimit}
+          onCancel={() => {
+            setRateLimitData(null);
+            setIsAIThinking(false);
+            setIsEnding(false);
+            setIsSkipping(false);
+          }}
+        />
         <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900">
           {/* Skeleton LEFT SIDEBAR */}
           <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">
@@ -302,7 +343,19 @@ function InterviewContent() {
 
   return (
     <SidebarLayout>
-      <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900">
+      <RateLimitBanner 
+        show={!!rateLimitData} 
+        message={rateLimitData?.message || ""} 
+        retryAfter={rateLimitData?.retryAfter || 20} 
+        onRetry={handleRetryRateLimit}
+        onCancel={() => {
+          setRateLimitData(null);
+          setIsAIThinking(false);
+          setIsEnding(false);
+          setIsSkipping(false);
+        }}
+      />
+      <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900 relative">
 
         {/* LEFT SIDEBAR: Progress */}
         <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">

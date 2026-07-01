@@ -40,17 +40,22 @@ export default function BackToTop({ containerId }: { containerId?: string }) {
       }
     };
 
-    // Try to do an initial check if elements exist
-    const initialContainer = containerId ? document.getElementById(containerId) : document.getElementById("main-scroll-container");
-    if (initialContainer) {
-      setIsVisible(initialContainer.scrollTop > 400);
-    } else {
-      setIsVisible(window.scrollY > 400);
-    }
+    // Initial check (wrapped in setTimeout to avoid sync setState in effect warning)
+    const timeout = setTimeout(() => {
+      const initialContainer = containerId ? document.getElementById(containerId) : document.getElementById("main-scroll-container");
+      if (initialContainer) {
+        setIsVisible(initialContainer.scrollTop > 400);
+      } else {
+        setIsVisible(window.scrollY > 400);
+      }
+    }, 0);
 
     // Use capture phase to catch scroll events from any inner containers
     window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
-    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+      clearTimeout(timeout);
+    };
   }, [containerId]);
 
   const scrollToTop = () => {

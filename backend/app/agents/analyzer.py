@@ -12,6 +12,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.schemas.agent_schemas import InterviewState, CandidateProfile
 from app.services.ats_scoring import calculate_final_ats_breakdown
 from app.core.config import get_settings
+from app.core.gemini_retry import with_retry
+from app.core.logger import log_agent_execution
+import time
 
 settings = get_settings()
 
@@ -52,7 +55,8 @@ async def analyzer_node(state: InterviewState) -> dict:
     jd_text = state.get("jd_text", "")
     
     try:
-        profile: CandidateProfile = await chain.ainvoke({
+        start_time = time.time()
+        profile: CandidateProfile = await with_retry(chain.ainvoke, {
             "resume": resume_text,
             "jd": jd_text
         })
@@ -62,11 +66,35 @@ async def analyzer_node(state: InterviewState) -> dict:
             breakdown = await calculate_final_ats_breakdown(resume_text, jd_text)
             profile.ats_breakdown = breakdown
         
-        
+        exec_time = time.time() - start_time
+        log_agent_execution(
+            session_id="N/A", # Will be mapped at higher level if needed
+            agent_name="Analyzer Agent",
+            execution_time=exec_time,
+            model="gemini-2.5-flash",
+            success=True,
+            final_status="OK"
+        )
         return {"candidate_profile": profile.model_dump()}
     except HTTPException as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Analyzer Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"{e.status_code} {e.detail.get('error', 'ERROR') if isinstance(e.detail, dict) else e.detail}"
+        )
         raise e
     except Exception as e:
+        log_agent_execution(
+            session_id="N/A",
+            agent_name="Analyzer Agent",
+            execution_time=time.time() - start_time if 'start_time' in locals() else 0,
+            model="gemini-2.5-flash",
+            success=False,
+            final_status=f"500 UNKNOWN_ERROR: {str(e)}"
+        )
         print(f"Analyzer Error: {e}")
         # Smart fallback: If the user's Gemini API key is broken or rate-limited, manually extract skills
         common_skills = [

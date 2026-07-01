@@ -141,9 +141,21 @@ async def create_session(
     # Run graph until it pauses at wait_for_answer interrupt
     try:
         final_state = await graph.ainvoke(initial_state, config=config)
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service has temporarily reached its request limit. Please wait about 20-30 seconds before trying again.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
         raise HTTPException(status_code=500, detail=str(e))
         
     next_question = final_state.get("next_question")
@@ -225,12 +237,26 @@ async def submit_answer(
                 "execution_time_sec": round(exec_time, 2)
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service has temporarily reached its request limit. Please wait about 20-30 seconds before trying again.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
         logger.error(
             f"Failed to process answer for session {session_id}: {str(e)}\n{traceback.format_exc()}",
             extra={"session_id": session_id, "answer_length": len(payload.answer)}
         )
-        raise HTTPException(status_code=500, detail="Unable to evaluate interview response.")
+        raise HTTPException(status_code=500, detail={"error": "UNKNOWN_ERROR", "message": "Unable to evaluate interview response."})
         
     evaluations = final_state.get("evaluations", [])
     latest_evaluation = evaluations[-1] if evaluations else None

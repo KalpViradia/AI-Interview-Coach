@@ -273,13 +273,30 @@ async def analyze_resume(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
         
-    analysis = await analyze_resume_content(resume.raw_text)
-    
-    if analysis.parsed_resume and not resume.parsed_json:
-        resume.parsed_json = analysis.parsed_resume.model_dump()
-        await db.commit()
+    try:
+        analysis = await analyze_resume_content(resume.raw_text)
+        
+        if analysis.parsed_resume and not resume.parsed_json:
+            resume.parsed_json = analysis.parsed_resume.model_dump()
+            await db.commit()
 
-    return analysis
+        return analysis
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service is temporarily busy. Please retry in a few seconds.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/resumes/{resume_id}/ats-check", response_model=ATSBreakdown)
@@ -303,5 +320,22 @@ async def run_ats_check(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
         
-    breakdown = await calculate_final_ats_breakdown(resume.raw_text, payload.jd_text)
-    return breakdown
+    try:
+        breakdown = await calculate_final_ats_breakdown(resume.raw_text, payload.jd_text)
+        return breakdown
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e).lower()
+        if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "RATE_LIMIT",
+                    "provider": "Google Gemini",
+                    "message": "The AI service is temporarily busy. Please retry in a few seconds.",
+                    "retry_after": 20,
+                    "recoverable": True
+                }
+            )
+        raise HTTPException(status_code=500, detail=str(e))
