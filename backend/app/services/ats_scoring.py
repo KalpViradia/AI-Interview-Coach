@@ -17,7 +17,7 @@ def get_embedder():
         try:
             logger.info("Loading Gemini embeddings for ATS scoring")
             _embedder = GoogleGenerativeAIEmbeddings(
-                model="models/gemini-embedding-2",
+                model="models/text-embedding-004",
                 google_api_key=settings.gemini_api_key
             )
         except Exception as e:

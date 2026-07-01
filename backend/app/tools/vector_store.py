@@ -14,29 +14,28 @@ from typing import List, Dict, Any
 
 settings = get_settings()
 
-# Initialize ChromaDB client pointing to the persistence directory
 chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_directory)
-
-# Lazily load embedding function
-_emb_fn = None
-def get_emb_fn():
-    global _emb_fn
-    if _emb_fn is None:
-        _emb_fn = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-            api_key=settings.gemini_api_key,
-            task_type="RETRIEVAL_DOCUMENT"
-        )
-    return _emb_fn
 
 # We will store all questions in a single collection
 COLLECTION_NAME = "interview_questions"
 
 def get_collection():
     """Retrieve or create the questions collection."""
-    return chroma_client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        embedding_function=get_emb_fn()
-    )
+    try:
+        return chroma_client.get_or_create_collection(
+            name=COLLECTION_NAME
+        )
+    except Exception as e:
+        if "Embedding function conflict" in str(e) or "embedding function" in str(e).lower():
+            print("Embedding function conflict detected. Recreating collection...")
+            try:
+                chroma_client.delete_collection(COLLECTION_NAME)
+            except Exception:
+                pass
+            return chroma_client.get_or_create_collection(
+                name=COLLECTION_NAME
+            )
+        raise e
 
 def chroma_retrieval_tool(topics: List[str], max_difficulty: int = 5, k: int = 3) -> List[Dict[str, Any]]:
     """
