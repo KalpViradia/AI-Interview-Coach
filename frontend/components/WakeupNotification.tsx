@@ -42,10 +42,16 @@ export default function WakeupNotification() {
       {isVisible && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "44px", opacity: 1 }}
+          animate={{ height: 44, opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="w-full bg-[#1b1a35] border-b border-purple-500/30 overflow-hidden shrink-0"
+          onUpdate={(latest) => {
+            if (typeof window !== "undefined") {
+              const h = typeof latest.height === "number" ? latest.height : parseFloat(latest.height as string) || 0;
+              document.documentElement.style.setProperty("--banner-height", `${h}px`);
+            }
+          }}
+          className="fixed top-0 left-0 right-0 w-full bg-[#1b1a35] border-b border-purple-500/30 overflow-hidden z-50"
         >
           <div className="h-[44px] flex items-center justify-between px-4 md:px-6 mx-auto max-w-7xl">
             <div className="flex items-center gap-3">
