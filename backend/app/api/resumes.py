@@ -23,6 +23,7 @@ from app.schemas.resume_studio_schemas import ResumeAnalysis, ATSCheckRequest
 from app.schemas.agent_schemas import ATSBreakdown
 from app.services.resume_analyzer import analyze_resume_content
 from app.services.ats_scoring import calculate_final_ats_breakdown
+from app.core.ats_cache import ats_cache
 
 router = APIRouter(tags=["resumes"])
 
@@ -321,7 +322,18 @@ async def run_ats_check(
         raise HTTPException(status_code=404, detail="Resume not found")
         
     try:
-        breakdown = await calculate_final_ats_breakdown(resume.raw_text, payload.jd_text)
+        # Check shared ATS cache first
+        cache_key = ats_cache.make_key(resume.raw_text, payload.jd_text)
+        cached_profile = ats_cache.get(cache_key)
+        
+        if cached_profile and "ats_breakdown" in cached_profile:
+            # Reconstruct ATSBreakdown from cached profile
+            breakdown = ATSBreakdown(**cached_profile["ats_breakdown"])
+        else:
+            breakdown = await calculate_final_ats_breakdown(resume.raw_text, payload.jd_text)
+            # Cache the result for reuse by session creation
+            ats_cache.put(cache_key, {"ats_breakdown": breakdown.model_dump()})
+        
         return breakdown
     except HTTPException:
         raise

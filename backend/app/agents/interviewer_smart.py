@@ -8,6 +8,10 @@ Replaces two separate agents (interviewer.py + follow_up.py) with smart routing:
 
 This reduces Gemini API calls from 2 to 1 per question generation.
 
+Token optimization: The prompt uses only the distilled CandidateProfile fields
+(skills, projects, experience_level, gaps_vs_jd) instead of the full raw resume
+and JD texts, saving ~2300 input tokens per turn (~23,000 per interview).
+
 Input state keys (from InterviewState):
     - pending_followup_question: dict | None (set by evaluator_coach_node)
     - candidate_profile: dict
@@ -15,8 +19,6 @@ Input state keys (from InterviewState):
     - turn_count: int
     - evaluations: list[dict]
     - questions: list[dict]
-    - resume_text: str
-    - jd_text: str
 
 Output state keys:
     - next_question: dict
@@ -51,14 +53,11 @@ structured_llm = llm.with_structured_output(Question)
 INTERVIEWER_PROMPT = """You are an expert technical interviewer conducting a mock interview.
 Your goal is to formulate the next interview question for the candidate.
 
-Job Description:
-{jd}
-
-Candidate's Resume:
-{resume}
-
-Candidate Profile Summary:
-{profile}
+Candidate Profile (extracted from their resume and the target job description):
+- Skills: {skills}
+- Key Projects: {projects}
+- Experience Level: {experience_level}
+- Gaps vs JD: {gaps}
 
 Current Difficulty Level: {difficulty}/5
 Previous Questions Asked:
@@ -69,12 +68,12 @@ Here are some suggested topics/questions from our question bank matching the can
 
 Task:
 Formulate ONE clear, professional interview question.
-You MUST make the question dynamic and highly tailored to the candidate's Resume and the Job Description.
-For example, ask about a specific project they mentioned, or ask how their specific skills apply to a requirement in the Job Description.
+You MUST make the question dynamic and highly tailored to the candidate's specific skills, projects, and gaps listed above.
+For example, ask about a specific project they worked on, or probe a gap between their skills and the job requirements.
 
 CRITICAL RULES:
 1. DO NOT ask any question that is identical or highly similar to any question in the 'Previous Questions Asked' list.
-2. DO NOT copy the suggested questions from the question bank. They are provided ONLY as a reference for the expected difficulty level. You must invent a completely NEW question based on the candidate's resume.
+2. DO NOT copy the suggested questions from the question bank. They are provided ONLY as a reference for the expected difficulty level. You must invent a completely NEW question based on the candidate's profile.
 3. DO NOT ask generic textbook questions (e.g., "What is REST API?", "What is OOP?") unless absolutely necessary. Instead, contextualize it.
 4. Output the question strictly according to the required schema."""
 
@@ -131,9 +130,10 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
         question: Question = await with_retry(
             chain.ainvoke,
             {
-                "resume": state.get("resume_text", "Not provided"),
-                "jd": state.get("jd_text", "Not provided"),
-                "profile": str(profile) if profile else "Unknown Profile",
+                "skills": ", ".join(skills) if skills else "Not provided",
+                "projects": ", ".join(profile.get("projects", [])) if profile else "Not provided",
+                "experience_level": profile.get("experience_level", "Unknown") if profile else "Unknown",
+                "gaps": ", ".join(profile.get("gaps_vs_jd", [])) if profile else "None identified",
                 "difficulty": current_diff,
                 "history": history_str,
                 "retrieved_questions": retrieved_str,

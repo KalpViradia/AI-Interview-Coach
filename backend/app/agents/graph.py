@@ -8,11 +8,14 @@ Flow:
                              ↑
                   evaluator_coach ← (after each answer)
                        ↓ (turn >= 10 OR __END_INTERVIEW__)
-               report_node → roadmap_node → END
+                   report_node → END
 
 Gemini calls per turn: 5 (old) → 2 (new):
   - evaluator_coach: 1 call (evaluates + decides follow-up + adjusts difficulty)
   - interviewer_smart: 1 call for new questions, 0 calls for follow-ups
+
+End of interview: report_node now generates both the summary AND the roadmap
+in a single LLM call (previously 2 separate calls via coach.py + roadmap.py).
 """
 
 from langgraph.graph import StateGraph, START, END
@@ -24,7 +27,6 @@ from app.agents.analyzer import analyzer_node
 from app.agents.interviewer_smart import interviewer_smart_node
 from app.agents.evaluator_coach import evaluator_coach_node
 from app.agents.coach import report_node
-from app.agents.roadmap import roadmap_node
 
 
 def wait_for_answer(state: InterviewState) -> dict:
@@ -59,7 +61,6 @@ builder.add_node("interviewer_smart", interviewer_smart_node)
 builder.add_node("wait_for_answer", wait_for_answer)
 builder.add_node("evaluator_coach", evaluator_coach_node)
 builder.add_node("report_node", report_node)
-builder.add_node("roadmap_node", roadmap_node)
 
 # Add edges
 builder.add_edge(START, "analyzer")
@@ -79,7 +80,6 @@ builder.add_conditional_edges(
     },
 )
 
-builder.add_edge("report_node", "roadmap_node")
-builder.add_edge("roadmap_node", END)
+builder.add_edge("report_node", END)
 
 # Compiled in main.py lifespan with the Postgres checkpointer instance

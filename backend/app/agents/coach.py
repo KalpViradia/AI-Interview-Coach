@@ -1,7 +1,11 @@
 """
 Coach Agent — runs once at session end.
 
-Input: all evaluations this session + prior reports for user_id
+Merged Report + Roadmap Agent (formerly two separate LLM calls).
+Now generates the session summary, scores, weak topics, AND the study roadmap
+in a single Gemini call, saving 1 API request per completed interview.
+
+Input: all evaluations this session + prior reports for user_id + jd_text
 Output: session_summary, weak_topics, roadmap, readiness_label
 Side effect: writes final report row to Postgres
 """
@@ -21,7 +25,7 @@ llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=settings.gemini_api_key,
     temperature=0.2,
-    max_retries=2,
+    max_retries=0,  # We handle retries ourselves via with_retry
 )
 
 coach_prompt = PromptTemplate.from_template(
@@ -33,6 +37,9 @@ Interview Transcript (Q&A and Evaluations):
 Historical Scores (from their last up to 5 interviews, chronological):
 {historical_scores}
 
+Job Description (if available):
+{jd_text}
+
 Based on their overall performance across all questions, and using their historical scores to determine momentum:
 1. Provide an overall score out of 10.
 2. Provide specific scores out of 10 for: Technical Knowledge, Communication, and Problem Solving.
@@ -40,15 +47,18 @@ Based on their overall performance across all questions, and using their histori
 4. Write a brief overall summary of their performance. Mention if they are improving or declining if historical data exists.
 5. Identify 2-3 strong topics they excelled at.
 6. Identify 2-3 weak topics they should focus on.
-(Do not provide a roadmap, that will be handled by a separate agent.)
+7. Create a highly detailed, step-by-step learning roadmap (as a list of strings) for the candidate to improve in their weak areas over the next 2 weeks.
+   - The roadmap MUST be tailored to the Job Description if one is provided.
+   - Each roadmap step should use proper Markdown formatting with bullet points.
+   - If the candidate had no weak topics, provide general improvement advice.
 """
 )
 
 chain = coach_prompt | llm.with_structured_output(SessionReport)
 
 async def report_node(state: InterviewState) -> dict:
-    """Report agent: generates final session summary and score."""
-    print("Report Agent: Generating session summary...")
+    """Merged report + roadmap agent: generates final session summary, score, and roadmap in one call."""
+    print("Report Agent: Generating session summary and roadmap...")
     
     evaluations = state.get("evaluations", [])
     
@@ -71,6 +81,7 @@ async def report_node(state: InterviewState) -> dict:
 
     historical_scores = state.get("historical_scores", [])
     hist_str = ", ".join(map(str, historical_scores)) if historical_scores else "No historical data available."
+    jd_text = state.get("jd_text", "")
 
     try:
         start_time = time.time()
@@ -78,13 +89,14 @@ async def report_node(state: InterviewState) -> dict:
             chain.ainvoke,
             {
                 "transcript": transcript,
-                "historical_scores": hist_str
+                "historical_scores": hist_str,
+                "jd_text": jd_text if jd_text else "No specific job description provided.",
             }
         )
         exec_time = time.time() - start_time
         log_agent_execution(
             session_id="N/A",
-            agent_name="Coach Agent",
+            agent_name="Coach Agent (merged report+roadmap)",
             execution_time=exec_time,
             model="gemini-2.5-flash",
             success=True,
@@ -95,7 +107,7 @@ async def report_node(state: InterviewState) -> dict:
     except HTTPException as e:
         log_agent_execution(
             session_id="N/A",
-            agent_name="Coach Agent",
+            agent_name="Coach Agent (merged report+roadmap)",
             execution_time=time.time() - start_time if 'start_time' in locals() else 0,
             model="gemini-2.5-flash",
             success=False,
@@ -105,7 +117,7 @@ async def report_node(state: InterviewState) -> dict:
     except Exception as e:
         log_agent_execution(
             session_id="N/A",
-            agent_name="Coach Agent",
+            agent_name="Coach Agent (merged report+roadmap)",
             execution_time=time.time() - start_time if 'start_time' in locals() else 0,
             model="gemini-2.5-flash",
             success=False,
@@ -142,6 +154,12 @@ async def report_node(state: InterviewState) -> dict:
         
         summary = f"You completed {len(evaluations)} questions with an average score of {avg_score:.1f}/10."
         
+        # Generate fallback roadmap from weak topics
+        fallback_roadmap = []
+        for topic in weakest_topics:
+            fallback_roadmap.append(f"**Focus Area: {topic}**\n- Review theoretical concepts related to {topic}.\n- Build a small project that heavily utilizes {topic}.\n- Practice explaining {topic} out loud.")
+        fallback_roadmap.append("Schedule another mock interview focusing on these topics next week.")
+        
         fallback_report = SessionReport(
             score=round(avg_score, 1),
             technical_score=round(avg_score, 1),
@@ -151,6 +169,6 @@ async def report_node(state: InterviewState) -> dict:
             summary=summary,
             strong_topics=sorted_topics[-2:] if len(sorted_topics) >= 2 else ["General effort"],
             weak_topics=weakest_topics,
-            roadmap=[] # Handled by roadmap_node
+            roadmap=fallback_roadmap,
         )
         return {"report": fallback_report.model_dump()}

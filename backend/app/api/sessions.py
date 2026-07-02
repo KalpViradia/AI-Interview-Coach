@@ -13,7 +13,6 @@ Auth model:
 
 import uuid
 import os
-import hashlib
 import time
 import traceback
 import logging
@@ -35,16 +34,10 @@ from app.schemas.api_schemas import (
 )
 from app.core.auth import get_current_user, get_optional_user, CurrentUser
 from app.core.config import get_settings
+from app.core.ats_cache import ats_cache
 from google import genai
 
 router = APIRouter(tags=["sessions"])
-
-# ---------------------------------------------------------------------------
-# In-memory ATS analysis cache — keyed by SHA-256 of resume_text + jd_text.
-# Avoids redundant Gemini calls when the same Resume+JD is submitted again.
-# Persists for the lifetime of the server process (good enough for demo).
-# ---------------------------------------------------------------------------
-_ats_cache: dict[str, dict] = {}
 
 @router.post("/sessions", response_model=SessionCreateResponse)
 async def create_session(
@@ -111,15 +104,8 @@ async def create_session(
     # ATS Cache: check if we've already analyzed this exact Resume+JD pair.
     # If so, inject the cached candidate_profile and skip the Gemini analyzer.
     # -----------------------------------------------------------------------
-    cache_key = hashlib.sha256(
-        (resume_text + jd_text).encode("utf-8")
-    ).hexdigest()
-    cached_profile = _ats_cache.get(cache_key)
-    
-    if cached_profile:
-        print(f"ATS Cache HIT for key {cache_key[:12]}... — skipping Gemini analyzer")
-    else:
-        print(f"ATS Cache MISS — will run Gemini analyzer")
+    cache_key = ats_cache.make_key(resume_text, jd_text)
+    cached_profile = ats_cache.get(cache_key)
     
     # Initialize state
     initial_state = {
@@ -163,8 +149,7 @@ async def create_session(
     
     # Save analyzer result to cache if this was a cache miss
     if not cached_profile and candidate_profile:
-        _ats_cache[cache_key] = candidate_profile
-        print(f"ATS Cache STORED for key {cache_key[:12]}...")
+        ats_cache.put(cache_key, candidate_profile)
     
     # Write to DB only for authenticated users
     if current_user:
