@@ -11,7 +11,6 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
 
