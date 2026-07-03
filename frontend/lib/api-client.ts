@@ -164,6 +164,7 @@ export interface CandidateProfile {
   skills: string[];
   projects: string[];
   experience_level: string;
+  experience_details?: string;
   gaps_vs_jd: string[];
   ats_breakdown?: ATSBreakdown;
 }
