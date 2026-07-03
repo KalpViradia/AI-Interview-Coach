@@ -8,10 +8,31 @@ import { RateLimitProvider } from "@/components/providers/RateLimitProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  title: "SkillMock — AI Interview Coach",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://skillmock.vercel.app"),
+  title: {
+    default: "SkillMock — Resume-Aware AI Interview Coach",
+    template: "%s | SkillMock"
+  },
   description:
-    "AI-powered interview preparation tailored to your resume and career goals. ATS analysis, mock interviews, and Resume Chat.",
+    "AI-powered interview preparation tailored to your resume and career goals. Get personalized ATS analysis, realistic mock interviews, and actionable AI feedback.",
+  keywords: ["AI interview", "mock interview", "resume analysis", "ATS checker", "interview prep", "job preparation", "RAG", "AI coach", "SkillMock"],
+  authors: [{ name: "SkillMock Team" }],
+  creator: "SkillMock",
+  publisher: "SkillMock",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: "https://skillmock.vercel.app"
+  },
   openGraph: {
     title: "SkillMock — AI Interview Coach",
     description:
