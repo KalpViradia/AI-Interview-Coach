@@ -5,10 +5,11 @@ Every structured LLM output uses JSON mode + Pydantic validation (Rule #2).
 """
 
 from typing import Annotated, TypedDict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import operator
 
 class ATSBreakdown(BaseModel):
+    model_config = ConfigDict(extra="ignore", strict=False) # ATS breakdown comes from external service, be lenient
     overall_score: int
     skill_score: int
     semantic_score: int
@@ -21,6 +22,7 @@ class ATSBreakdown(BaseModel):
 
 # State component models
 class CandidateProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=False)
     skills: List[str] = Field(default_factory=list)
     projects: List[str] = Field(default_factory=list)
     experience_level: str = ""
@@ -28,6 +30,7 @@ class CandidateProfile(BaseModel):
     ats_breakdown: Optional[ATSBreakdown] = None
 
 class Evaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=False)
     question: str
     answer: str
     score: Optional[float] = None
@@ -37,12 +40,14 @@ class Evaluation(BaseModel):
     ideal_answer: str = ""
 
 class Question(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=False)
     text: str
     topic: str
     difficulty: int
     is_follow_up: bool = False
     
 class SessionReport(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=False)
     score: float = 0.0
     technical_score: float = 0.0
     communication_score: float = 0.0

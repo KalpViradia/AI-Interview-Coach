@@ -269,12 +269,19 @@ function ReportContent() {
                 <Map className="w-5 h-5 text-indigo-400" /> Recommended Topics & Roadmap
               </h3>
               <div className="space-y-4">
-                {report.roadmap.map((step, idx) => (
-                  <div key={idx} className="flex gap-5 p-5 rounded-2xl bg-black/50 border border-zinc-800/80 hover:border-indigo-500/30 transition-colors">
+                {report.roadmap.reduce((acc: string[], curr: string) => {
+                  if ((curr.trim().startsWith('-') || curr.trim().startsWith('*')) && acc.length > 0) {
+                    acc[acc.length - 1] += '\n' + curr;
+                  } else {
+                    acc.push(curr);
+                  }
+                  return acc;
+                }, []).map((step, idx) => (
+                  <div key={idx} className="flex gap-5 p-5 rounded-2xl bg-black/50 border border-zinc-800/80 hover:border-indigo-500/30 transition-colors w-full overflow-hidden">
                     <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-black text-lg border border-indigo-500/20 shadow-inner">
                       {idx + 1}
                     </div>
-                    <div className="text-zinc-300 pt-2 leading-relaxed font-medium prose prose-invert prose-sm max-w-none">
+                    <div className="flex-1 min-w-0 text-zinc-300 pt-2 leading-relaxed font-medium prose prose-invert prose-sm max-w-none overflow-x-auto break-words">
                       <ReactMarkdown>
                         {step}
                       </ReactMarkdown>

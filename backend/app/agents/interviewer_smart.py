@@ -48,7 +48,7 @@ llm = ChatGoogleGenerativeAI(
     max_retries=0,  # We handle retries ourselves via with_retry
 )
 
-structured_llm = llm.with_structured_output(Question)
+structured_llm = llm.with_structured_output(Question, include_raw=True)
 
 INTERVIEWER_PROMPT = """You are an expert technical interviewer conducting a mock interview.
 Your goal is to formulate the next interview question for the candidate.
@@ -109,8 +109,8 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
     profile = state.get("candidate_profile")
     skills = profile.get("skills", []) if profile else []
 
-    # Build history string to avoid repeat questions
-    asked_questions = state.get("questions", [])
+    # Build history string to avoid repeat questions (limit to last 5)
+    asked_questions = state.get("questions", [])[-5:]
     history_texts = [
         q.get("text", "") if isinstance(q, dict) else getattr(q, "text", "")
         for q in asked_questions
@@ -127,7 +127,7 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
 
     try:
         start_time = time.time()
-        question: Question = await with_retry(
+        gemini_res = await with_retry(
             chain.ainvoke,
             {
                 "skills": ", ".join(skills) if skills else "Not provided",
@@ -139,12 +139,15 @@ async def interviewer_smart_node(state: InterviewState) -> dict:
                 "retrieved_questions": retrieved_str,
             }
         )
+        question: Question = gemini_res.data
         exec_time = time.time() - start_time
         log_agent_execution(
             session_id="N/A",
             agent_name="Interviewer Smart",
             execution_time=exec_time,
             model="gemini-2.5-flash",
+            prompt_tokens=gemini_res.input_tokens,
+            completion_tokens=gemini_res.output_tokens,
             success=True,
             final_status="OK"
         )

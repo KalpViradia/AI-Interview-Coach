@@ -21,6 +21,9 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import WakeupNotification from "@/components/WakeupNotification";
+import { workflowState } from "@/lib/workflow-state";
+import { useDialog } from "@/components/ui/dialog/useDialog";
+import { useRateLimit } from "@/components/providers/RateLimitProvider";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -30,7 +33,7 @@ import { Suspense } from "react";
 
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading layout...</div>}>
+    <Suspense fallback={<div className="h-full bg-black text-white flex items-center justify-center">Loading layout...</div>}>
       <SidebarLayoutInner>{children}</SidebarLayoutInner>
     </Suspense>
   );
@@ -42,6 +45,41 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { showConfirm } = useDialog();
+  const { status: rateLimitStatus } = useRateLimit();
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (workflowState.isActive) {
+      e.preventDefault();
+      
+      if (rateLimitStatus === "paused" || workflowState.isPaused) {
+        showConfirm({
+          title: "Leave Interview?",
+          message: "The AI service is temporarily unavailable and your interview is currently paused.\n\nYour interview progress has already been saved. You can resume this interview later.",
+          confirmText: "Continue",
+          cancelText: "Stay",
+          cancelVariant: "primary",
+          onConfirm: () => {
+            workflowState.isActive = false;
+            workflowState.isPaused = false;
+            router.push(href);
+          }
+        });
+      } else {
+        showConfirm({
+          title: "Interrupt Interview?",
+          message: "You currently have an interview in progress. Leaving now will end the session, and any unanswered questions will be lost. This action cannot be undone.",
+          confirmText: "Leave Interview",
+          cancelText: "Stay & Continue",
+          cancelVariant: "primary",
+          onConfirm: () => {
+            workflowState.isActive = false;
+            router.push(href);
+          }
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     document.body.classList.add("has-sidebar");
@@ -100,6 +138,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
             <Link
               key={link.name}
               href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                 isActive 
                   ? "bg-indigo-600/10 text-indigo-400 font-medium" 
@@ -117,6 +156,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
       <div className="p-4 border-t border-zinc-800">
         <Link
           href="/about"
+          onClick={(e) => handleNavClick(e, "/about")}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 mb-4 ${
             pathname.startsWith("/about")
               ? "bg-indigo-600/10 text-indigo-400 font-medium" 
@@ -141,7 +181,24 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
               </div>
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={(e) => {
+                if (workflowState.isActive) {
+                  e.preventDefault();
+                  showConfirm({
+                    title: "Interrupt Interview?",
+                    message: "You currently have an interview in progress. Leaving now will end the session, and any unanswered questions will be lost. This action cannot be undone.",
+                    confirmText: "Leave Interview",
+                    cancelText: "Stay & Continue",
+                    cancelVariant: "primary",
+                    onConfirm: () => {
+                      workflowState.isActive = false;
+                      signOut({ callbackUrl: "/login" });
+                    }
+                  });
+                } else {
+                  signOut({ callbackUrl: "/login" });
+                }
+              }}
               className="mt-2 w-full flex items-center justify-start gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -161,6 +218,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
             </div>
             <Link
               href="/login"
+              onClick={(e) => handleNavClick(e, "/login")}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
             >
               <LogIn className="w-4 h-4" />
@@ -168,6 +226,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
             </Link>
             <Link
               href="/register"
+              onClick={(e) => handleNavClick(e, "/register")}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-zinc-700 hover:border-zinc-600 text-zinc-300 hover:text-white transition-colors"
             >
               <UserPlus className="w-4 h-4" />
@@ -180,9 +239,9 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-black flex overflow-hidden selection:bg-indigo-500/30">
+    <div className="h-full flex flex-col md:flex-row bg-black overflow-hidden selection:bg-indigo-500/30">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block w-72 h-screen shrink-0">
+      <div className="hidden md:block w-72 h-full shrink-0">
         {renderSidebarContent()}
       </div>
 
@@ -233,7 +292,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div id="main-scroll-container" className="flex-1 h-screen overflow-y-auto bg-black pt-16 md:pt-0">
+      <div id="main-scroll-container" className="flex-1 h-full overflow-y-auto bg-black pt-16 md:pt-0 relative">
         <main className="h-full">
           {children}
         </main>

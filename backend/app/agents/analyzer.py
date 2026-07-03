@@ -26,7 +26,7 @@ llm = ChatGoogleGenerativeAI(
     max_retries=2,
 )
 
-structured_llm = llm.with_structured_output(CandidateProfile)
+structured_llm = llm.with_structured_output(CandidateProfile, include_raw=True)
 
 SYSTEM_PROMPT = """You are an expert technical recruiter and AI Interview Coach.
 Your task is to analyze a candidate's resume and a target job description (JD).
@@ -56,10 +56,11 @@ async def analyzer_node(state: InterviewState) -> dict:
     
     try:
         start_time = time.time()
-        profile: CandidateProfile = await with_retry(chain.ainvoke, {
+        gemini_res = await with_retry(chain.ainvoke, {
             "resume": resume_text,
             "jd": jd_text
         })
+        profile: CandidateProfile = gemini_res.data
         
         # Calculate Hybrid ATS Score only if a JD is provided
         if jd_text.strip():
@@ -72,6 +73,8 @@ async def analyzer_node(state: InterviewState) -> dict:
             agent_name="Analyzer Agent",
             execution_time=exec_time,
             model="gemini-2.5-flash",
+            prompt_tokens=gemini_res.input_tokens,
+            completion_tokens=gemini_res.output_tokens,
             success=True,
             final_status="OK"
         )

@@ -72,7 +72,7 @@ class InterviewSession(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.id"), nullable=True)
     jd_id = Column(UUID(as_uuid=True), ForeignKey("job_descriptions.id"), nullable=True)
-    status = Column(String(50), default="in_progress")  # in_progress, completed
+    status = Column(String(50), default="CREATED")  # CREATED, ANALYSIS_RUNNING, READY, INTERVIEW_ACTIVE, SUBMITTING, GENERATING_REPORT, COMPLETED, FAILED
     session_type = Column(String(50), default="ats_check") # ats_check, mock_interview
     started_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime(timezone=True), nullable=True)

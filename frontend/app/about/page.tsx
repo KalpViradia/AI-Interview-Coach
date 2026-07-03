@@ -22,7 +22,7 @@ export default function AboutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30 font-sans pb-24">
+    <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30 font-sans pb-48">
       {/* Background styling */}
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-black to-black"></div>
 
@@ -83,26 +83,27 @@ export default function AboutPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center"
         >
-          <div className="mb-12">
-            <h2 className="text-sm font-semibold text-indigo-400 mb-2 uppercase tracking-wider">The Problem</h2>
-            <h3 className="text-3xl font-bold text-white max-w-2xl">Preparing for technical interviews is often inefficient.</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="mb-10">
+              <h2 className="text-sm font-semibold text-indigo-400 mb-2 uppercase tracking-wider">The Problem</h2>
+              <h3 className="text-3xl font-bold text-white max-w-2xl">Preparing for technical interviews is often inefficient.</h3>
+            </div>
+            
             <ul className="space-y-4 text-zinc-300 text-lg list-disc pl-5">
               <li className="pl-2">Candidates practice generic questions not relevant to their background.</li>
               <li className="pl-2">They receive little personalized feedback on their answers.</li>
               <li className="pl-2">Resume–job description gaps go unidentified before applying.</li>
               <li className="pl-2">There is no structured path to measure and improve readiness.</li>
             </ul>
-            
-            <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-              <p className="text-xl font-medium text-indigo-100 leading-relaxed relative z-10">
-                AI Coach solves this by understanding your resume and generating personalized interview preparation.
-              </p>
-            </div>
+          </div>
+          
+          <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+            <p className="text-xl font-medium text-indigo-100 leading-relaxed relative z-10">
+              AI Coach solves this by understanding your resume and generating personalized interview preparation.
+            </p>
           </div>
         </motion.div>
       </div>
@@ -328,7 +329,7 @@ export default function AboutPage() {
       </div>
 
       {/* 7. CTA */}
-      <div className="mx-auto max-w-4xl px-6 lg:px-8 mb-16">
+      <div className="mx-auto max-w-4xl px-8 sm:px-12 lg:px-16 mb-16">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -348,6 +349,9 @@ export default function AboutPage() {
           </button>
         </motion.div>
       </div>
+
+      {/* Spacer to guarantee scrollable breathing room at the bottom of the page */}
+      <div className="h-32 md:h-48 w-full shrink-0"></div>
 
     </div>
   );

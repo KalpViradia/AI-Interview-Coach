@@ -70,10 +70,58 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.db import get_db
+from sqlalchemy import text
+
 @app.get("/api/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "version": "0.1.0"}
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """Health check endpoint. Verifies external dependencies."""
+    components = {
+        "database": "disconnected",
+        "chromadb": "disconnected",
+        "gemini_api_key": "configured" if settings.gemini_api_key else "missing"
+    }
+    
+    # Check Database
+    try:
+        await db.execute(text("SELECT 1"))
+        components["database"] = "connected"
+    except Exception as e:
+        components["database"] = f"error: {str(e)}"
+        
+    # Check ChromaDB
+    try:
+        from app.rag.resume_chat import chroma_client
+        chroma_client.heartbeat()
+        components["chromadb"] = "connected"
+    except Exception as e:
+        components["chromadb"] = f"error: {str(e)}"
+        
+    status = "ok" if all(v == "connected" or v == "configured" for v in components.values()) else "degraded"
+    
+    return {
+        "status": status,
+        "version": "0.1.0",
+        "components": components
+    }
+
+from app.core.ats_cache import ats_cache
+from app.core.gemini_retry import _circuit
+import time
+
+@app.get("/api/stats")
+async def system_stats():
+    """Returns system statistics like cache hit rates and circuit breaker status."""
+    return {
+        "ats_cache": ats_cache.stats(),
+        "gemini_circuit_breaker": {
+            "failure_count": _circuit["failure_count"],
+            "is_open": _circuit["open_until"] is not None and time.time() < _circuit["open_until"],
+            "threshold": _circuit["threshold"]
+        }
+    }
 
 from app.api import sessions, upload, auth, resume_chat, resumes
 from app.agents.graph import builder

@@ -6,6 +6,7 @@
  */
 
 import { getSession } from "next-auth/react";
+import { triggerRateLimit } from "./rate-limit-event";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -47,6 +48,12 @@ export async function apiFetch<T>(
     ...((options?.headers as Record<string, string>) || {}),
   };
 
+  // If uploading a file, browser must set Content-Type with boundary automatically
+  // Checking duck typing for safety across server/client contexts
+  if (options?.body && typeof (options.body as any).append === "function") {
+    delete headers["Content-Type"];
+  }
+
   // Attach auth token if available (and not explicitly skipped)
   if (!options?.skipAuth) {
     try {
@@ -77,6 +84,25 @@ export async function apiFetch<T>(
     const message = typeof detail === 'string' 
       ? detail 
       : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+
+    if (response.status === 429) {
+      const retryAfter = detail?.retry_after || 20;
+      return new Promise<T>((resolve, reject) => {
+        triggerRateLimit(
+          retryAfter,
+          message || "The AI service is temporarily busy. Please try again.",
+          () => {
+            // Retry the same request recursively
+            apiFetch<T>(endpoint, options).then(resolve).catch(reject);
+          },
+          () => {
+            // Cancel and propagate error
+            reject(new APIError(response.status, message, detail));
+          }
+        );
+      });
+    }
+
     throw new APIError(response.status, message, detail);
   }
 
@@ -177,6 +203,7 @@ export interface SessionStateResponse {
   next_question?: Question;
   turn_count: number;
   is_complete: boolean;
+  status: string;
   session_type: "ats_check" | "mock_interview" | "general" | "resume_based" | "job_specific";
   report?: SessionReport;
   candidate_profile?: CandidateProfile;
@@ -241,6 +268,23 @@ export async function uploadDocument(file: File, docType: 'resume' | 'jd' = 'res
     const message = typeof detail === 'string' 
       ? detail 
       : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+
+    if (response.status === 429) {
+      const retryAfter = detail?.retry_after || 20;
+      return new Promise<{ text: string }>((resolve, reject) => {
+        triggerRateLimit(
+          retryAfter,
+          message || "The AI service is temporarily busy. Please try again.",
+          () => {
+            uploadDocument(file, docType).then(resolve).catch(reject);
+          },
+          () => {
+            reject(new APIError(response.status, message, detail));
+          }
+        );
+      });
+    }
+
     throw new APIError(response.status, message, detail);
   }
 
@@ -284,6 +328,40 @@ export interface ResumeDetailResponse extends ResumeResponse {
 
 export async function getResumes(): Promise<ResumeResponse[]> {
   return apiFetch<ResumeResponse[]>("/resumes");
+}
+
+export async function uploadForResumeChat(file: File): Promise<{ session_id: string, message: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${API_BASE_URL}/resume-chat/upload`;
+  const headers: Record<string, string> = {};
+  try {
+    const jwtRes = await fetch("/api/auth/token");
+    if (jwtRes.ok) {
+      const { token } = await jwtRes.json();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+  } catch {}
+
+  const response = await managedFetch(url, {
+    method: "POST",
+    body: formData,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const detail = error.detail || error;
+    const message = typeof detail === 'string' 
+      ? detail 
+      : (detail?.message || `API error: ${response.status} ${response.statusText}`);
+    throw new APIError(response.status, message, detail);
+  }
+
+  return response.json();
 }
 
 export async function uploadToVault(file: File, displayName?: string): Promise<ResumeResponse> {

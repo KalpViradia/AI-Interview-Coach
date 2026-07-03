@@ -151,9 +151,9 @@ async def explain_ats_score(
     
     prompt = f"""
     You are an expert technical recruiter analyzing an ATS score.
-    The candidate received an ATS match score of {overall_score}/100.
     
-    Score Breakdown:
+    Score Breakdown Context (Do NOT repeat these numbers in your output):
+    - Overall Score: {overall_score}/100
     - Skill Match: {skill_score}/30
     - Semantic Match: {semantic_score}/40
     - Experience Match: {experience_score}/15
@@ -162,13 +162,31 @@ async def explain_ats_score(
     Matched Skills: {", ".join(matched_skills) if matched_skills else "None"}
     Missing Skills: {", ".join(missing_skills) if missing_skills else "None"}
     
-    Based on these metrics, provide:
-    1. A short, professional paragraph explaining why they got this score (focusing on strengths and gaps).
-    2. A list of 2-3 specific, actionable suggestions to improve their resume for this job.
+    Based on these metrics, provide an explanation and actionable suggestions.
+    
+    RULES FOR 'explanation' FIELD:
+    - Must be formatted as Markdown.
+    - Structure it exactly with these sections (using Markdown headings):
+    
+    ### Overall Assessment
+    (2-3 concise paragraphs summarizing alignment in a professional recruiter tone. NEVER mention numerical scores or say "The candidate achieved a score of X".)
+    
+    ---
+    
+    ### Key Strengths
+    (Bulleted list of 2-3 strong points)
+    
+    ---
+    
+    ### Primary Gaps
+    (Bulleted list of 2-3 weaknesses or missing elements)
+    
+    RULES FOR 'suggestions' FIELD:
+    - A list of 2-3 specific, actionable recommendations to improve the resume.
     
     Return the response in strictly this JSON format:
     {{
-        "explanation": "string",
+        "explanation": "string (markdown formatted)",
         "suggestions": ["string", "string"]
     }}
     """

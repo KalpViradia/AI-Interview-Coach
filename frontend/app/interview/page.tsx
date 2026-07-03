@@ -10,7 +10,11 @@ import ReactMarkdown from "react-markdown";
 import SidebarLayout from "@/components/SidebarLayout";
 import { InterviewSkeleton } from "@/components/Skeletons";
 import { useDialog } from "@/components/ui/dialog/useDialog";
-import { RateLimitBanner } from "@/components/RateLimitBanner";
+import { PostAnswerReview } from "@/components/interview/PostAnswerReview";
+import { AnswerEvaluationCard } from "@/components/interview/AnswerEvaluationCard";
+import { IdealAnswerCard } from "@/components/interview/IdealAnswerCard";
+import { workflowState } from "@/lib/workflow-state";
+import { useRateLimit } from "@/components/providers/RateLimitProvider";
 
 // Sequential loading stages (never loops)
 const THINKING_STAGES = [
@@ -54,12 +58,38 @@ function InterviewContent() {
   const [isSkipping, setIsSkipping] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [thinkingMessage, setThinkingMessage] = useState(THINKING_STAGES[0]);
-  const [isEvaluationExpanded, setIsEvaluationExpanded] = useState(false);
 
   const { showConfirm } = useDialog();
+  const { status, isPaused, resumeAutoRetry } = useRateLimit();
   // Track whether current question's answer has been submitted
   const [hasSubmittedCurrent, setHasSubmittedCurrent] = useState(false);
-  const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number, pendingAction: 'submit' | 'end'} | null>(null);
+  const [showPausedModal, setShowPausedModal] = useState(false);
+
+  useEffect(() => {
+    if (showPausedModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showPausedModal]);
+
+  useEffect(() => {
+    if (!isPaused) {
+      setShowPausedModal(false);
+    }
+  }, [isPaused]);
+
+  const handleAction = (actionFn: () => void) => {
+    if (status === "retrying") return; // Do nothing if auto-retrying
+    if (isPaused) {
+      setShowPausedModal(true);
+      return;
+    }
+    actionFn();
+  };
 
   // Sequential thinking messages (no looping)
   useEffect(() => {
@@ -116,7 +146,8 @@ function InterviewContent() {
 
         setTranscript(transcriptData);
 
-        if (state.is_complete) {
+        if (state.is_complete || state.status === "COMPLETED") {
+          workflowState.isActive = false;
           router.replace(`/report?session_id=${sessionId}`);
         } else if (state.next_question) {
           setQuestion(state.next_question);
@@ -134,6 +165,33 @@ function InterviewContent() {
 
     fetchData();
   }, [sessionId, router]);
+
+  // Handle workflow state & beforeunload
+  useEffect(() => {
+    if (!loading && !isComplete && sessionId) {
+      workflowState.isActive = true;
+      
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      };
+      
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      
+      // Update workflowState with paused flag for SidebarLayout
+      workflowState.isPaused = isPaused;
+      
+      return () => {
+        workflowState.isActive = false;
+        workflowState.isPaused = false;
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    } else {
+      workflowState.isActive = false;
+      workflowState.isPaused = false;
+    }
+  }, [loading, isComplete, sessionId, isPaused]);
 
   // Derived state for Live Score Panel
   const completedEvaluations = transcript.filter(t => t.evaluation).map(t => t.evaluation!);
@@ -154,7 +212,6 @@ function InterviewContent() {
     try {
       const response = await submitAnswer(sessionId, isSkip ? "__SKIP__" : answer);
       setEvaluation(response.evaluation || null);
-      setIsEvaluationExpanded(false);
       setNextQuestion(response.next_question || null);
       setIsComplete(response.is_complete);
       setHasSubmittedCurrent(true);
@@ -177,28 +234,9 @@ function InterviewContent() {
         }]);
       }
     } catch (err: unknown) {
-      if (err instanceof APIError && err.status === 429) {
-        setRateLimitData({
-          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
-          retryAfter: err.data?.retry_after || 20,
-          pendingAction: 'submit'
-        });
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to submit answer.");
-      }
+      setError(err instanceof Error ? err.message : "Failed to submit answer.");
     } finally {
       setIsAIThinking(false);
-    }
-  };
-
-  const handleRetryRateLimit = async () => {
-    if (!rateLimitData) return;
-    const action = rateLimitData.pendingAction;
-    setRateLimitData(null);
-    if (action === 'submit') {
-      await handleSubmit();
-    } else if (action === 'end') {
-      await handleConfirmEnd();
     }
   };
 
@@ -241,15 +279,7 @@ function InterviewContent() {
         router.push(`/report?session_id=${sessionId}`);
       }
     } catch (err: unknown) {
-      if (err instanceof APIError && err.status === 429) {
-        setRateLimitData({
-          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
-          retryAfter: err.data?.retry_after || 20,
-          pendingAction: 'end'
-        });
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to end interview.");
-      }
+      setError(err instanceof Error ? err.message : "Failed to end interview.");
       setIsAIThinking(false);
       setIsEnding(false);
     }
@@ -276,18 +306,6 @@ function InterviewContent() {
   if (loading || !question) {
     return (
       <SidebarLayout>
-        <RateLimitBanner 
-          show={!!rateLimitData} 
-          message={rateLimitData?.message || ""} 
-          retryAfter={rateLimitData?.retryAfter || 20} 
-          onRetry={handleRetryRateLimit}
-          onCancel={() => {
-            setRateLimitData(null);
-            setIsAIThinking(false);
-            setIsEnding(false);
-            setIsSkipping(false);
-          }}
-        />
         <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900">
           {/* Skeleton LEFT SIDEBAR */}
           <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">
@@ -343,18 +361,6 @@ function InterviewContent() {
 
   return (
     <SidebarLayout>
-      <RateLimitBanner 
-        show={!!rateLimitData} 
-        message={rateLimitData?.message || ""} 
-        retryAfter={rateLimitData?.retryAfter || 20} 
-        onRetry={handleRetryRateLimit}
-        onCancel={() => {
-          setRateLimitData(null);
-          setIsAIThinking(false);
-          setIsEnding(false);
-          setIsSkipping(false);
-        }}
-      />
       <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900 relative">
 
         {/* LEFT SIDEBAR: Progress */}
@@ -417,9 +423,9 @@ function InterviewContent() {
             </div>
 
             <button
-              onClick={handleEndInterviewClick}
+              onClick={() => handleAction(handleEndInterviewClick)}
               disabled={isAIThinking || loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 text-red-400 py-3 text-sm font-bold transition-all active:scale-95 disabled:opacity-50"
+              className={`flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/5 border border-red-500/10 text-red-400 py-3 text-sm font-bold transition-all disabled:opacity-50 ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:bg-red-500/10 active:scale-95"}`}
             >
               <LogOut className="w-4 h-4" /> End Interview
             </button>
@@ -439,25 +445,28 @@ function InterviewContent() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
+                onClick={() => handleAction(() => {
                   if (isTtsEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
                   setIsTtsEnabled(!isTtsEnabled);
-                }}
-                className={`p-2 rounded-full border transition-colors flex items-center justify-center ${isTtsEnabled ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+                })}
+                className={`p-2 rounded-full border transition-colors flex items-center justify-center ${status !== "idle" ? "opacity-50 cursor-not-allowed" : ""} ${isTtsEnabled ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
                 title={isTtsEnabled ? "Mute AI Voice" : "Enable AI Voice"}
               >
                 {isTtsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
               
               <button
-                onClick={handleEndInterviewClick}
+                onClick={() => handleAction(handleEndInterviewClick)}
                 disabled={isAIThinking || loading}
-                className="flex items-center gap-2 p-2 px-4 rounded-full border bg-zinc-900 border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-colors"
+                className={`flex items-center gap-2 p-2 px-4 rounded-full border bg-zinc-900 border-zinc-800 text-red-400 transition-colors disabled:opacity-50 ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:bg-red-500/10 hover:border-red-500/20"}`}
                 title="End Interview"
               >
                 <LogOut className="w-4 h-4" /> <span className="text-sm font-bold hidden sm:inline">Exit</span>
               </button>
             </div>
+          </div>
+
+          <div className="flex justify-end w-full">
           </div>
 
           {/* Mobile Progress Bar (Visible only below xl) */}
@@ -539,36 +548,42 @@ function InterviewContent() {
                   exit={{ opacity: 0, y: -10 }}
                   className="flex flex-col flex-1"
                 >
-                  <textarea
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && e.ctrlKey && answer.trim()) {
-                        e.preventDefault();
-                        handleSubmit(false);
-                      }
+                  <div
+                    className={`flex-1 w-full relative ${status !== "idle" ? "opacity-50" : ""}`}
+                    onClick={() => {
+                      if (status === "paused") setShowPausedModal(true);
                     }}
-                    placeholder="Type your answer here... (Ctrl+Enter to submit)"
-                    className="flex-1 w-full p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-zinc-200 focus:border-indigo-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500/50 transition-all outline-none resize-none placeholder:text-zinc-600 text-lg leading-relaxed shadow-inner"
-                  />
+                  >
+                    <textarea
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      disabled={status !== "idle"}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && e.ctrlKey && answer.trim()) {
+                          e.preventDefault();
+                          handleAction(() => handleSubmit(false));
+                        }
+                      }}
+                      placeholder="Type your answer here... (Ctrl+Enter to submit)"
+                      className="w-full h-full p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-zinc-200 focus:border-indigo-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500/50 transition-all outline-none resize-none placeholder:text-zinc-600 text-lg leading-relaxed shadow-inner disabled:cursor-not-allowed"
+                    />
+                  </div>
                   {error && <p className="text-red-400 text-sm mt-3 px-2">{error}</p>}
 
                   {/* Action Bar */}
                   <div className="flex justify-between items-center mt-6 p-2 rounded-2xl bg-zinc-900/80 border border-zinc-800">
                     <button
-                      onClick={() => handleSubmit(true)}
-                      className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+                      onClick={() => handleAction(() => handleSubmit(true))}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-zinc-400 transition-all ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:text-white hover:bg-zinc-800"}`}
                     >
                       <FastForward className="w-4 h-4" /> Skip
                     </button>
 
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => {
-                          handleSubmit(false);
-                        }}
-                        disabled={!answer.trim()}
-                        className="flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-bold text-black transition-all hover:bg-zinc-200 active:scale-95 disabled:opacity-50 disabled:hover:bg-white cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                        onClick={() => handleAction(() => handleSubmit(false))}
+                        disabled={!answer.trim() && status === "idle"}
+                        className={`flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-bold text-black transition-all disabled:opacity-50 disabled:hover:bg-white shadow-[0_0_20px_rgba(255,255,255,0.1)] ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:bg-zinc-200 active:scale-95 cursor-pointer"}`}
                       >
                         Submit <Send className="w-4 h-4 ml-1" />
                       </button>
@@ -577,95 +592,73 @@ function InterviewContent() {
                 </motion.div>
               ) : (
                 /* ── EVALUATION RESULT ── */
-                <motion.div
-                  key="evaluation"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex flex-col flex-1 space-y-6"
-                >
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 shadow-xl transition-all duration-300">
-                    <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsEvaluationExpanded(!isEvaluationExpanded)}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                          <CheckCircle className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-white">Answer Evaluated</h3>
-                          <p className="text-zinc-400 text-sm">Score: <span className="text-white font-bold">{evaluation.score}/10</span></p>
-                        </div>
-                      </div>
-                      <div className="text-sm font-bold text-indigo-400 flex items-center gap-2">
-                        {isEvaluationExpanded ? "Hide Detailed Feedback ▲" : "View Detailed Feedback ▼"}
-                      </div>
-                    </div>
+                <PostAnswerReview>
+                  <AnswerEvaluationCard evaluation={evaluation} />
+                  
+                  {evaluation.ideal_answer && (
+                    <IdealAnswerCard idealAnswer={evaluation.ideal_answer} />
+                  )}
 
-                    <AnimatePresence>
-                      {isEvaluationExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-8 mt-6 border-t border-zinc-800">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                              <div>
-                                <h4 className="flex items-center gap-2 text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4">
-                                  <CheckCircle className="w-4 h-4" /> Strengths
-                                </h4>
-                                <ul className="space-y-3">
-                                  {evaluation.strengths.length > 0 ? evaluation.strengths.map((s, i) => (
-                                    <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
-                                      <span className="text-emerald-500/50 mt-1 shrink-0">•</span>
-                                      <span className="break-words min-w-0">{s}</span>
-                                    </li>
-                                  )) : <li className="text-sm text-zinc-500 italic">No clear strengths identified.</li>}
-                                </ul>
-                              </div>
-                              <div>
-                                <h4 className="flex items-center gap-2 text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">
-                                  <AlertCircle className="w-4 h-4" /> Weaknesses
-                                </h4>
-                                <ul className="space-y-3">
-                                  {evaluation.weaknesses.length > 0 ? evaluation.weaknesses.map((w, i) => (
-                                    <li key={i} className="text-sm text-zinc-300 flex items-start gap-3 leading-relaxed">
-                                      <span className="text-amber-500/50 mt-1 shrink-0">•</span>
-                                      <span className="break-words min-w-0">{w}</span>
-                                    </li>
-                                  )) : <li className="text-sm text-zinc-500 italic">No major weaknesses identified.</li>}
-                                </ul>
-                              </div>
-                            </div>
-
-                            {evaluation.ideal_answer && (
-                              <div className="pt-8 border-t border-zinc-800">
-                                <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-4">Ideal Answer Approach</h4>
-                                <div className="text-sm text-zinc-300 leading-relaxed bg-black/30 p-6 rounded-2xl border border-zinc-800/50 prose prose-invert prose-sm max-w-none break-words">
-                                  <ReactMarkdown>{evaluation.ideal_answer}</ReactMarkdown>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="flex justify-end mt-6 mb-8 pb-4">
+                  <div className="flex justify-end mt-2 mb-8 pb-4">
                     <button
-                      onClick={handleNext}
-                      className="flex items-center gap-2 rounded-xl bg-white text-black px-8 py-4 text-sm font-bold transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-lg"
+                      onClick={() => handleAction(handleNext)}
+                      className={`flex items-center gap-2 rounded-xl bg-white text-black px-8 py-4 text-sm font-bold transition-all shadow-lg ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:bg-zinc-200 hover:scale-105 active:scale-95"}`}
                     >
                       {isComplete ? "View Final Report" : "Next Question"}
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
                   </div>
-                </motion.div>
+                </PostAnswerReview>
               )}
             </AnimatePresence>
           </div>
         </div>
       </div>
+      
+      {/* Root Level Fixed Paused Modal Overlay */}
+      <AnimatePresence>
+        {showPausedModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl relative">
+              <button 
+                onClick={() => setShowPausedModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mx-auto w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-4 mt-2">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Interview Paused</h3>
+              <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
+                The AI service is temporarily unavailable. Your interview progress is safely preserved. You can wait here, or leave and resume later.
+              </p>
+              <button
+                onClick={() => {
+                  resumeAutoRetry();
+                  setShowPausedModal(false);
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Resume Auto-Retry
+              </button>
+              <button
+                onClick={() => setShowPausedModal(false)}
+                className="w-full bg-transparent hover:bg-zinc-800 text-zinc-300 py-3 mt-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                Keep Paused
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </SidebarLayout>
   );
 }

@@ -49,12 +49,12 @@ Based on their overall performance across all questions, and using their histori
 6. Identify 2-3 weak topics they should focus on.
 7. Create a highly detailed, step-by-step learning roadmap (as a list of strings) for the candidate to improve in their weak areas over the next 2 weeks.
    - The roadmap MUST be tailored to the Job Description if one is provided.
-   - Each roadmap step should use proper Markdown formatting with bullet points.
+   - Each item in the list MUST represent a major milestone (e.g., 'Day 1-3: Topic') and MUST contain all its sub-points as markdown bullets within the SAME string. Do NOT create separate list items for sub-points.
    - If the candidate had no weak topics, provide general improvement advice.
 """
 )
 
-chain = coach_prompt | llm.with_structured_output(SessionReport)
+chain = coach_prompt | llm.with_structured_output(SessionReport, include_raw=True)
 
 async def report_node(state: InterviewState) -> dict:
     """Merged report + roadmap agent: generates final session summary, score, and roadmap in one call."""
@@ -85,7 +85,7 @@ async def report_node(state: InterviewState) -> dict:
 
     try:
         start_time = time.time()
-        report: SessionReport = await with_retry(
+        gemini_res = await with_retry(
             chain.ainvoke,
             {
                 "transcript": transcript,
@@ -93,12 +93,15 @@ async def report_node(state: InterviewState) -> dict:
                 "jd_text": jd_text if jd_text else "No specific job description provided.",
             }
         )
+        report: SessionReport = gemini_res.data
         exec_time = time.time() - start_time
         log_agent_execution(
             session_id="N/A",
             agent_name="Coach Agent (merged report+roadmap)",
             execution_time=exec_time,
             model="gemini-2.5-flash",
+            prompt_tokens=gemini_res.input_tokens,
+            completion_tokens=gemini_res.output_tokens,
             success=True,
             final_status="OK"
         )

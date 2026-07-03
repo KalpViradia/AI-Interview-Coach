@@ -7,9 +7,8 @@ import DocumentUpload from "@/components/DocumentUpload";
 import ReactMarkdown from "react-markdown";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { getResumes, ResumeResponse, managedFetch, APIError } from "@/lib/api-client";
+import { getResumes, ResumeResponse, apiFetch, uploadForResumeChat } from "@/lib/api-client";
 import { useDialog } from "@/components/ui/dialog/useDialog";
-import { RateLimitBanner } from "@/components/RateLimitBanner";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -32,7 +31,6 @@ function ResumeChatContent() {
   const [resumeSource, setResumeSource] = useState<"vault" | "upload">("upload");
   const [selectedResumeId, setSelectedResumeId] = useState<string>("");
   const [resumes, setResumes] = useState<ResumeResponse[]>([]);
-  const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number, pendingQuery: string} | null>(null);
   
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
@@ -73,28 +71,10 @@ function ResumeChatContent() {
     setIsUploading(true);
 
     try {
-      let res;
-      
-      const token = isAuthenticated ? await fetch("/api/auth/token").then(r => r.json()).then(d => d.token).catch(()=>"") : "";
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
       if (resumeSource === "upload") {
         const doUpload = async (uploadFile: File) => {
-          const formData = new FormData();
-          formData.append("file", uploadFile);
-          res = await managedFetch(`${API_BASE_URL}/resume-chat/upload`, {
-            method: "POST",
-            headers,
-            body: formData,
-          });
+          const data = await uploadForResumeChat(uploadFile);
           
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.detail || "Failed to initialize chat");
-          }
-          
-          const data = await res.json();
           setSessionId(data.session_id);
           
           setMessages([
@@ -114,19 +94,11 @@ function ResumeChatContent() {
           await doUpload(uploadFile);
         }
       } else {
-        headers["Content-Type"] = "application/json";
-        res = await managedFetch(`${API_BASE_URL}/resume-chat/select`, {
+        const data = await apiFetch<any>("/resume-chat/select", {
           method: "POST",
-          headers,
           body: JSON.stringify({ resume_id: selectedResumeId }),
         });
         
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || "Failed to initialize chat");
-        }
-        
-        const data = await res.json();
         setSessionId(data.session_id);
         
         setMessages([
@@ -156,20 +128,10 @@ function ResumeChatContent() {
     setIsTyping(true);
 
     try {
-      const res = await managedFetch(`${API_BASE_URL}/resume-chat/ask`, {
+      const data = await apiFetch<any>("/resume-chat/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, query }),
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-          throw new APIError(429, errorData.detail?.message || "Rate limit", errorData.detail);
-        }
-        throw new Error(errorData.detail || "Failed to get answer");
-      }
-      const data = await res.json();
       
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
@@ -178,76 +140,15 @@ function ResumeChatContent() {
         cached: data.cached
       }]);
     } catch (err) {
-      if (err instanceof APIError && err.status === 429) {
-        // Keep the user message in transcript but don't show error message
-        setRateLimitData({
-          message: err.data?.message || "The AI service is temporarily busy. Please try again.",
-          retryAfter: err.data?.retry_after || 20,
-          pendingQuery: query
-        });
-      } else {
-        const errorMessage = err instanceof Error ? err.message : "Sorry, I encountered an error. Please try again.";
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: errorMessage }]);
-      }
+      const errorMessage = err instanceof Error ? err.message : "Sorry, I encountered an error. Please try again.";
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: errorMessage }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleRetryRateLimit = () => {
-    if (!rateLimitData) return;
-    const query = rateLimitData.pendingQuery;
-    setRateLimitData(null);
-    
-    // Instead of resending via handleSend which pushes a new user message,
-    // we manually do the API call here to avoid duplicating the user's message in the UI
-    setIsTyping(true);
-    managedFetch(`${API_BASE_URL}/resume-chat/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, query }),
-    }).then(async res => {
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        if (res.status === 429) throw new APIError(429, errorData.detail?.message || "Rate limit", errorData.detail);
-        throw new Error(errorData.detail || "Failed to get answer");
-      }
-      return res.json();
-    }).then(data => {
-      setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
-        role: "assistant", 
-        content: data.answer,
-        cached: data.cached
-      }]);
-    }).catch(err => {
-      if (err instanceof APIError && err.status === 429) {
-        setRateLimitData({
-          message: err.data?.message || "The AI service is temporarily busy.",
-          retryAfter: err.data?.retry_after || 20,
-          pendingQuery: query
-        });
-      } else {
-        const errorMessage = err instanceof Error ? err.message : "Sorry, I encountered an error.";
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: errorMessage }]);
-      }
-    }).finally(() => {
-      setIsTyping(false);
-    });
-  };
-
   return (
     <SidebarLayout>
-      <RateLimitBanner 
-        show={!!rateLimitData} 
-        message={rateLimitData?.message || ""} 
-        retryAfter={rateLimitData?.retryAfter || 20} 
-        onRetry={handleRetryRateLimit}
-        onCancel={() => {
-          setRateLimitData(null);
-          setIsTyping(false);
-        }}
-      />
       <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] p-4 md:p-8 max-w-6xl mx-auto w-full relative">
         {/* Background glow */}
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>

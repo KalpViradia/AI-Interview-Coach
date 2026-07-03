@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     chat_model: str = "gemini-2.5-flash"
     embedding_model: str = "models/gemini-embedding-2"
     vision_model: str = "gemini-2.5-flash"
+    
+    analyzer_prompt_version: str = "1.0"
+    ats_prompt_version: str = "1.0"
 
     # ChromaDB
     chroma_persist_directory: str = "./chroma_db_v2"

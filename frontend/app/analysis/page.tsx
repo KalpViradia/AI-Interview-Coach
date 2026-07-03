@@ -10,6 +10,7 @@ import { SessionCreateResponse } from "@/lib/api-client";
 import Link from "next/link";
 import AnalysisSkeleton from "@/components/skeletons/AnalysisSkeleton";
 import BackToTop from "@/components/ui/BackToTop";
+import ReactMarkdown from "react-markdown";
 
 function AnalysisContent() {
   const router = useRouter();
@@ -185,11 +186,13 @@ function AnalysisContent() {
               {profile.ats_breakdown && (
                 <div className="p-6 rounded-3xl bg-indigo-500/5 border border-indigo-500/20 backdrop-blur-sm">
                   <h3 className="flex items-center gap-2 text-lg font-semibold text-white mb-4">
-                    <BrainCircuit className="w-5 h-5 text-indigo-400" /> AI Evaluation
+                    <BrainCircuit className="w-5 h-5 text-indigo-400" /> AI Insights
                   </h3>
-                  <p className="text-indigo-200/80 text-sm leading-relaxed mb-6">
-                    {profile.ats_breakdown.explanation}
-                  </p>
+                  <div className="text-indigo-200/80 text-sm leading-relaxed mb-6 prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-indigo-100 prose-headings:font-semibold prose-hr:border-indigo-500/20 prose-hr:my-4 prose-ul:my-2 prose-li:my-0.5">
+                    <ReactMarkdown>
+                      {profile.ats_breakdown.explanation}
+                    </ReactMarkdown>
+                  </div>
                   
                   {profile.ats_breakdown.improvement_suggestions.length > 0 && (
                     <div className="space-y-3 pt-4 border-t border-indigo-500/10">

@@ -10,8 +10,8 @@ import SidebarLayout from "@/components/SidebarLayout";
 import LoadingProcess from "@/components/LoadingProcess";
 import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
 import { useSession } from "next-auth/react";
-import { RateLimitBanner } from "@/components/RateLimitBanner";
 import { useDialog } from "@/components/ui/dialog/useDialog";
+import { workflowState } from "@/lib/workflow-state";
 
 type InterviewType = "general" | "resume_based" | "job_specific" | "ats_check";
 
@@ -36,7 +36,6 @@ function UploadContent() {
   const [pdfLoadingResume, setPdfLoadingResume] = useState(false);
   const [pdfLoadingJd, setPdfLoadingJd] = useState(false);
   const [error, setError] = useState("");
-  const [rateLimitData, setRateLimitData] = useState<{message: string, retryAfter: number} | null>(null);
 
   const isAuthenticated = status === "authenticated";
 
@@ -64,6 +63,8 @@ function UploadContent() {
     if (isAtsMode) {
       const timeout = setTimeout(() => setInterviewType("ats_check"), 0);
       return () => clearTimeout(timeout);
+    } else {
+      setInterviewType((prev) => prev === "ats_check" ? "general" : prev);
     }
   }, [isAtsMode]);
 
@@ -102,6 +103,7 @@ function UploadContent() {
     const doSubmit = async (finalResumeText: string) => {
       setLoading(true);
       setError("");
+      workflowState.isActive = true;
 
       try {
         const payload: Record<string, string> = {
@@ -115,23 +117,10 @@ function UploadContent() {
           payload.resume_id = selectedResumeId;
           payload.resume_text = ""; // Will be fetched on backend
         }
-
-        const response = await managedFetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api") + "/sessions", {
+        const { apiFetch } = await import("@/lib/api-client");
+        const response = await apiFetch<any>("/sessions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(isAuthenticated ? { "Authorization": `Bearer ${await fetch("/api/auth/token").then(r => r.json()).then(d => d.token).catch(()=>"")}` } : {})
-          },
           body: JSON.stringify(payload)
-        }).then(async r => {
-          if (!r.ok) {
-             const errData = await r.json().catch(() => ({}));
-             if (r.status === 429) {
-               throw new APIError(429, errData.detail?.message || "Rate limit", errData.detail);
-             }
-             throw new Error(errData.detail || "Failed to start session");
-          }
-          return r.json();
         });
         
         if (typeof window !== "undefined") {
@@ -144,24 +133,14 @@ function UploadContent() {
           router.push(`/interview?session_id=${response.session_id}`);
         }
       } catch (err: unknown) {
-        if (err instanceof APIError && err.status === 429) {
-          setRateLimitData({
-            message: err.data?.message || "The AI service is temporarily busy. Please try again.",
-            retryAfter: err.data?.retry_after || 20
-          });
-        } else {
-          setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
-        }
+        setError(err instanceof Error ? err.message : "Failed to start interview.");
+        workflowState.isActive = false;
+      } finally {
         setLoading(false);
       }
     };
 
     await doSubmit(resumeText);
-  };
-
-  const handleRetryRateLimit = () => {
-    setRateLimitData(null);
-    handleStartInterview();
   };
 
   const renderInterviewTypeSelection = () => (
@@ -200,16 +179,6 @@ function UploadContent() {
 
   return (
     <SidebarLayout>
-      <RateLimitBanner 
-        show={!!rateLimitData} 
-        message={rateLimitData?.message || ""} 
-        retryAfter={rateLimitData?.retryAfter || 20} 
-        onRetry={handleRetryRateLimit}
-        onCancel={() => {
-          setRateLimitData(null);
-          setLoading(false);
-        }}
-      />
       <div className="min-h-screen bg-black text-zinc-50 flex flex-col items-center py-12 px-4 relative overflow-y-auto">
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>
         

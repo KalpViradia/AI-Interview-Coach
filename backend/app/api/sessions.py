@@ -37,6 +37,7 @@ from app.core.config import get_settings
 from app.core.ats_cache import ats_cache
 from google import genai
 
+settings = get_settings()
 router = APIRouter(tags=["sessions"])
 
 @router.post("/sessions", response_model=SessionCreateResponse)
@@ -60,6 +61,7 @@ async def create_session(
     
     resume_text = payload.resume_text or ""
     jd_text = payload.jd_text or ""
+    resume = None
     
     # If a resume_id is provided, fetch it from DB (must belong to user)
     if payload.resume_id and current_user:
@@ -101,11 +103,21 @@ async def create_session(
             print(f"Failed to fetch historical scores: {e}")
             
     # -----------------------------------------------------------------------
-    # ATS Cache: check if we've already analyzed this exact Resume+JD pair.
-    # If so, inject the cached candidate_profile and skip the Gemini analyzer.
+    # Profile Cache: Check DB-persisted profile first, then in-memory ATS cache.
+    # This eliminates the Gemini analyzer call for any resume used before.
     # -----------------------------------------------------------------------
-    cache_key = ats_cache.make_key(resume_text, jd_text)
-    cached_profile = ats_cache.get(cache_key)
+    db_resume_ref = resume
+    cached_profile = None
+    
+    # 1. Check if the Resume already has a persisted candidate_profile
+    if db_resume_ref and db_resume_ref.parsed_json and "candidate_profile" in db_resume_ref.parsed_json:
+        cached_profile = db_resume_ref.parsed_json["candidate_profile"]
+        logger.info(f"CandidateProfile loaded from DB for resume {payload.resume_id[:8]}...")
+    
+    # 2. Fallback: check in-memory ATS cache
+    cache_key = ats_cache.make_key(resume_text, jd_text, settings.analyzer_prompt_version)
+    if not cached_profile:
+        cached_profile = ats_cache.get(cache_key)
     
     # Initialize state
     initial_state = {
@@ -123,13 +135,32 @@ async def create_session(
         # and the analyzer checks this before calling Gemini.
         **(  {"candidate_profile": cached_profile} if cached_profile else {}  ),
     }
+    # Write to DB for authenticated users BEFORE graph runs
+    session_status = "ANALYSIS_RUNNING"
+    new_session = None
+    if current_user:
+        new_session = InterviewSession(
+            id=uuid.UUID(session_id),
+            user_id=uuid.UUID(current_user.id),
+            resume_id=uuid.UUID(payload.resume_id) if payload.resume_id else None,
+            session_type=payload.interview_type,
+            status=session_status
+        )
+        db.add(new_session)
+        await db.commit()
     
     # Run graph until it pauses at wait_for_answer interrupt
     try:
         final_state = await graph.ainvoke(initial_state, config=config)
     except HTTPException:
+        if current_user and new_session:
+            new_session.status = "FAILED"
+            await db.commit()
         raise
     except Exception as e:
+        if current_user and new_session:
+            new_session.status = "FAILED"
+            await db.commit()
         error_str = str(e).lower()
         if "429" in error_str or "quota" in error_str or "resourceexhausted" in error_str:
             raise HTTPException(
@@ -147,20 +178,23 @@ async def create_session(
     next_question = final_state.get("next_question")
     candidate_profile = final_state.get("candidate_profile")
     
-    # Save analyzer result to cache if this was a cache miss
+    # Save analyzer result to caches if this was a cache miss
     if not cached_profile and candidate_profile:
         ats_cache.put(cache_key, candidate_profile)
+        # Persist to DB for long-term reuse across server restarts
+        if db_resume_ref:
+            existing_json = db_resume_ref.parsed_json or {}
+            existing_json["candidate_profile"] = candidate_profile
+            db_resume_ref.parsed_json = existing_json
+            # Flag the ORM column as modified (JSONB mutation detection)
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(db_resume_ref, "parsed_json")
     
-    # Write to DB only for authenticated users
-    if current_user:
-        new_session = InterviewSession(
-            id=uuid.UUID(session_id),
-            user_id=uuid.UUID(current_user.id),
-            resume_id=uuid.UUID(payload.resume_id) if payload.resume_id else None,
-            session_type=payload.interview_type,
-            status="in_progress"
-        )
-        db.add(new_session)
+    session_status = "READY" if payload.interview_type == "ats_check" else "INTERVIEW_ACTIVE"
+    
+    # Update DB for authenticated users
+    if current_user and new_session:
+        new_session.status = session_status
         
         if next_question:
             db_question = Question(
@@ -176,6 +210,7 @@ async def create_session(
     
     return SessionCreateResponse(
         session_id=session_id,
+        status=session_status,
         candidate_profile=candidate_profile,
         next_question=next_question
     )
@@ -204,6 +239,20 @@ async def submit_answer(
     if not current_state_tuple or not current_state_tuple.values:
         raise HTTPException(status_code=404, detail="Session not found")
         
+    db_session = None
+    if current_user:
+        session_result = await db.execute(
+            select(InterviewSession).where(
+                InterviewSession.id == uuid.UUID(session_id),
+                InterviewSession.user_id == uuid.UUID(current_user.id),
+            )
+        )
+        db_session = session_result.scalars().first()
+        
+        if db_session:
+            db_session.status = "GENERATING_REPORT" if payload.answer == "__END_INTERVIEW__" else "SUBMITTING"
+            await db.commit()
+            
     try:
         start_time = time.time()
         final_state = await graph.ainvoke(
@@ -253,82 +302,77 @@ async def submit_answer(
     if is_complete:
         next_question = None
         
-    # --- DB Updates (only for authenticated users with a matching session) ---
-    if current_user:
-        session_result = await db.execute(
-            select(InterviewSession).where(
-                InterviewSession.id == uuid.UUID(session_id),
-                InterviewSession.user_id == uuid.UUID(current_user.id),
-            )
-        )
-        db_session = session_result.scalars().first()
+    session_status = "COMPLETED" if is_complete else "INTERVIEW_ACTIVE"
         
-        if db_session:
-            # Upgrade session type to mock_interview on first answer
-            if db_session.session_type == "ats_check":
-                db_session.session_type = "mock_interview"
+    # --- DB Updates (only for authenticated users with a matching session) ---
+    if current_user and db_session:
+        db_session.status = session_status
+        
+        # Upgrade session type to mock_interview on first answer
+        if db_session.session_type == "ats_check":
+            db_session.session_type = "mock_interview"
 
-            # Find the last question in DB for this session (the one being answered)
-            q_result = await db.execute(
-                select(Question)
-                .where(Question.session_id == uuid.UUID(session_id))
-                .order_by(Question.order_index.desc())
-                .limit(1)
+        # Find the last question in DB for this session (the one being answered)
+        q_result = await db.execute(
+            select(Question)
+            .where(Question.session_id == uuid.UUID(session_id))
+            .order_by(Question.order_index.desc())
+            .limit(1)
+        )
+        last_db_question = q_result.scalars().first()
+        
+        if last_db_question and latest_evaluation and payload.answer != "__END_INTERVIEW__":
+            db_answer = Answer(
+                question_id=last_db_question.id,
+                text=payload.answer
             )
-            last_db_question = q_result.scalars().first()
+            db.add(db_answer)
+            await db.flush()  # to get db_answer.id
             
-            if last_db_question and latest_evaluation and payload.answer != "__END_INTERVIEW__":
-                db_answer = Answer(
-                    question_id=last_db_question.id,
-                    text=payload.answer
-                )
-                db.add(db_answer)
-                await db.flush()  # to get db_answer.id
+            db_eval = AnswerEvaluation(
+                answer_id=db_answer.id,
+                score=latest_evaluation.get("score"),
+                strengths_json=latest_evaluation.get("strengths", []),
+                weaknesses_json=latest_evaluation.get("weaknesses", []),
+                feedback=latest_evaluation.get("suggestion", "")
+            )
+            db.add(db_eval)
+            
+        if next_question:
+            turn_count = final_state.get("turn_count", 0)
+            db_question = Question(
+                session_id=uuid.UUID(session_id),
+                text=next_question["text"],
+                topic=next_question["topic"],
+                difficulty=next_question["difficulty"],
+                order_index=turn_count + 1
+            )
+            db.add(db_question)
+            
+        if report:
+            db_report = Report(
+                session_id=uuid.UUID(session_id),
+                summary_json={
+                    "summary": report.get("summary", ""),
+                    "score": report.get("score", 0.0),
+                    "technical_score": report.get("technical_score", 0.0),
+                    "communication_score": report.get("communication_score", 0.0),
+                    "problem_solving_score": report.get("problem_solving_score", 0.0)
+                },
+                weak_topics_json=report.get("weak_topics", []),
+                roadmap_json=report.get("roadmap", []),
+                readiness_label=report.get("readiness_label", "")
+            )
+            db.add(db_report)
+            
+            # Mark session completed
+            from datetime import datetime, timezone
+            db_session.completed_at = datetime.now(timezone.utc)
                 
-                db_eval = AnswerEvaluation(
-                    answer_id=db_answer.id,
-                    score=latest_evaluation.get("score"),
-                    strengths_json=latest_evaluation.get("strengths", []),
-                    weaknesses_json=latest_evaluation.get("weaknesses", []),
-                    feedback=latest_evaluation.get("suggestion", "")
-                )
-                db.add(db_eval)
-                
-            if next_question:
-                turn_count = final_state.get("turn_count", 0)
-                db_question = Question(
-                    session_id=uuid.UUID(session_id),
-                    text=next_question["text"],
-                    topic=next_question["topic"],
-                    difficulty=next_question["difficulty"],
-                    order_index=turn_count + 1
-                )
-                db.add(db_question)
-                
-            if report:
-                db_report = Report(
-                    session_id=uuid.UUID(session_id),
-                    summary_json={
-                        "summary": report.get("summary", ""),
-                        "score": report.get("score", 0.0),
-                        "technical_score": report.get("technical_score", 0.0),
-                        "communication_score": report.get("communication_score", 0.0),
-                        "problem_solving_score": report.get("problem_solving_score", 0.0)
-                    },
-                    weak_topics_json=report.get("weak_topics", []),
-                    roadmap_json=report.get("roadmap", []),
-                    readiness_label=report.get("readiness_label", "")
-                )
-                db.add(db_report)
-                
-                # Mark session completed
-                from datetime import datetime, timezone
-                db_session.status = "completed"
-                db_session.completed_at = datetime.now(timezone.utc)
-                    
-            await db.commit()
+        await db.commit()
         
     return AnswerSubmitResponse(
+        status=session_status,
         evaluation=latest_evaluation,
         next_question=next_question,
         report=report,
@@ -419,6 +463,7 @@ async def get_session_state(
     
     # If authenticated, verify ownership and get DB report fallback
     session_type = "mock_interview"
+    session_status = None
     db_report_dict = None
     if current_user:
         session_result = await db.execute(
@@ -430,6 +475,7 @@ async def get_session_state(
         db_session = session_result.scalars().first()
         if db_session:
             session_type = db_session.session_type
+            session_status = db_session.status
             if db_session.report:
                 db_report_dict = {
                     "summary": (db_session.report.summary_json or {}).get("summary", ""),
@@ -444,9 +490,20 @@ async def get_session_state(
                 }
     
     final_report = state.get("report") or db_report_dict
+    
+    if not session_status:
+        if final_report is not None:
+            session_status = "COMPLETED"
+        elif not state.get("next_question"):
+            session_status = "FAILED"
+        elif state.get("turn_count", 0) > 0:
+            session_status = "INTERVIEW_ACTIVE"
+        else:
+            session_status = "READY"
 
     return {
         "session_id": session_id,
+        "status": session_status,
         "next_question": state.get("next_question"),
         "turn_count": state.get("turn_count", 0),
         "is_complete": final_report is not None,

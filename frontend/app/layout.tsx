@@ -4,9 +4,11 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import WakeupNotification from "@/components/WakeupNotification";
 import { DialogProvider } from "@/components/ui/dialog/DialogProvider";
+import { RateLimitProvider } from "@/components/providers/RateLimitProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "AI Interview Coach",
   description:
     "Resume-aware AI interview preparation platform with ATS analysis, mock interviews, and Resume Chat.",
@@ -41,13 +43,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} bg-black text-white min-h-screen`}>
+      <body className={`${inter.className} bg-black text-white h-[100dvh] flex flex-col overflow-hidden`}>
         <WakeupNotification />
-        <AuthProvider>
-          <DialogProvider>
-            {children}
-          </DialogProvider>
-        </AuthProvider>
+        <div className="flex-1 overflow-y-auto relative flex flex-col">
+          <AuthProvider>
+            <DialogProvider>
+              <RateLimitProvider>
+                {children}
+              </RateLimitProvider>
+            </DialogProvider>
+          </AuthProvider>
+        </div>
       </body>
     </html>
   );

@@ -24,6 +24,9 @@ from app.schemas.agent_schemas import ATSBreakdown
 from app.services.resume_analyzer import analyze_resume_content
 from app.services.ats_scoring import calculate_final_ats_breakdown
 from app.core.ats_cache import ats_cache
+from app.core.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(tags=["resumes"])
 
@@ -54,9 +57,14 @@ async def get_resumes(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """Get all resumes in the vault for the authenticated user."""
+    try:
+        user_uuid = uuid.UUID(current_user.id)
+    except ValueError:
+        return []
+
     result = await db.execute(
         select(Resume)
-        .where(Resume.user_id == uuid.UUID(current_user.id))
+        .where(Resume.user_id == user_uuid)
         .options(selectinload(Resume.sessions))
         .order_by(Resume.created_at.desc())
     )
@@ -323,7 +331,7 @@ async def run_ats_check(
         
     try:
         # Check shared ATS cache first
-        cache_key = ats_cache.make_key(resume.raw_text, payload.jd_text)
+        cache_key = ats_cache.make_key(resume.raw_text, payload.jd_text, settings.ats_prompt_version)
         cached_profile = ats_cache.get(cache_key)
         
         if cached_profile and "ats_breakdown" in cached_profile:

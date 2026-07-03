@@ -14,6 +14,7 @@ class SessionCreateRequest(BaseModel):
 
 class SessionCreateResponse(BaseModel):
     session_id: str
+    status: str
     candidate_profile: Optional[dict] = None
     next_question: Optional[Question]
 
@@ -21,6 +22,7 @@ class AnswerSubmitRequest(BaseModel):
     answer: str
 
 class AnswerSubmitResponse(BaseModel):
+    status: str
     evaluation: Optional[Evaluation]
     next_question: Optional[Question]
     report: Optional[SessionReport]

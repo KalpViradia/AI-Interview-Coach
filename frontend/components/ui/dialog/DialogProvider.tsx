@@ -12,6 +12,7 @@ interface DialogOptions {
   type?: DialogType;
   confirmText?: string;
   cancelText?: string;
+  cancelVariant?: "neutral" | "primary";
   defaultValue?: string;
   onConfirm?: (value?: string) => void;
   onCancel?: () => void;
@@ -155,7 +156,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-              className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+              className="w-full max-w-[440px] bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
               role="dialog"
               aria-modal="true"
             >
@@ -164,7 +165,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   {getIcon(options.type || "info")}
                   <div className="flex-1 pt-1">
                     <h3 className="text-lg font-bold text-white mb-2 leading-tight">{options.title}</h3>
-                    <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">{options.message}</p>
+                    <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap pb-2">{options.message}</p>
                     
                     {options.type === "prompt" && (
                       <div className="mt-4">
@@ -196,7 +197,11 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   {(options.type === "confirm" || options.type === "prompt") && (
                     <button
                       onClick={closeDialog}
-                      className="px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+                      className={
+                        options.cancelVariant === "primary"
+                          ? "px-6 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          : "px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+                      }
                     >
                       {options.cancelText || "Cancel"}
                     </button>

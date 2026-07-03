@@ -21,8 +21,8 @@ Output state keys:
 
 import random
 import time
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
 from fastapi import HTTPException
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
@@ -42,16 +42,20 @@ llm = ChatGoogleGenerativeAI(
 
 # Pydantic model for the merged structured output
 class EvaluatorCoachOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=False)
+    required_concepts: list[str] = Field(default_factory=list, description="Core concepts required for a correct answer")
+    optional_concepts: list[str] = Field(default_factory=list, description="Optional concepts that improve the answer")
+    common_mistakes: list[str] = Field(default_factory=list, description="Common pitfalls or mistakes for this question")
     score: float = Field(ge=0, le=10, description="Score from 0 to 10")
     strengths: list[str] = Field(default_factory=list)
     weaknesses: list[str] = Field(default_factory=list)
     suggestion: str = Field(default="")
-    ideal_answer: str = Field(default="")
+    model_answer: str = Field(default="", description="100-150 word concise interview-quality answer")
     new_difficulty: int = Field(ge=1, le=5, description="New difficulty level 1-5")
     needs_followup: bool = Field(default=False)
     followup_question_text: Optional[str] = Field(default=None)
 
-structured_llm = llm.with_structured_output(EvaluatorCoachOutput)
+structured_llm = llm.with_structured_output(EvaluatorCoachOutput, include_raw=True)
 
 EVALUATOR_COACH_PROMPT = """You are an expert technical interviewer evaluating a candidate's answer.
 
@@ -64,13 +68,23 @@ Recent Interview History (last 3 Q&A scores for context):
 {history_summary}
 
 Your tasks:
-1. Evaluate the answer thoroughly (score 1-10, strengths, weaknesses, suggestion, ideal_answer).
-   - CRITICAL: Format the `ideal_answer` using proper Markdown formatting. Use bullet points or numbered lists with clear newline separation for each point to ensure readability.
-2. Decide the NEXT difficulty level (1-5 scale):
+1. Define an evaluation rubric BEFORE scoring:
+   - Identify `required_concepts` the candidate must mention.
+   - Identify `optional_concepts` that show deeper knowledge.
+   - Identify `common_mistakes` candidates make for this question.
+2. Draft a `model_answer`: Provide a realistic, concise 100-150 word answer that a strong candidate would actually say in a 1-2 minute verbal response. DO NOT write an exhaustive textbook explanation.
+3. Evaluate the answer thoroughly (score 1-10, strengths, weaknesses, suggestion).
+   - CRITICAL SCORING RULES:
+     * Reward conceptual correctness, logical reasoning, and communication quality.
+     * Reward concise, structured, technically correct answers.
+     * DO NOT penalize for missing optional concepts.
+     * DO NOT expect textbook-level completeness. The model_answer is only a reference.
+     * Assume candidates are answering verbally. Missing exhaustive details should NOT significantly reduce the score.
+4. Decide the NEXT difficulty level (1-5 scale):
    - Score >= 8: increase difficulty by 1 (max 5)
    - Score 4-7: keep same difficulty
    - Score <= 3: decrease difficulty by 1 (min 1)
-3. Decide if a follow-up question is needed:
+5. Decide if a follow-up question is needed:
    - needs_followup = true ONLY if the answer was dangerously incomplete or missed a CORE concept
    - If needs_followup = true, provide a targeted followup_question_text probing the gap
    - If needs_followup = false, followup_question_text must be null
@@ -107,11 +121,11 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
         try:
             ideal_prompt = PromptTemplate.from_template(
                 "You are an expert technical interviewer. The candidate skipped this question:\n\n"
-                "{question}\n\nProvide a concise, highly effective ideal answer. Format it using proper Markdown (use bullet points or numbered lists with clear newline separation)."
+                "{question}\n\nProvide a concise 100-150 word model answer that a strong candidate would realistically say in an interview. Format it using proper Markdown."
             )
             ideal_chain = ideal_prompt | llm
-            ideal_result = await with_retry(ideal_chain.ainvoke, {"question": question_text})
-            ideal_answer_text = ideal_result.content
+            ideal_res = await with_retry(ideal_chain.ainvoke, {"question": question_text})
+            ideal_answer_text = ideal_res.data.content
         except Exception:
             ideal_answer_text = "An ideal answer would directly address the core concepts required."
 
@@ -141,7 +155,7 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
 
     try:
         start_time = time.time()
-        result: EvaluatorCoachOutput = await with_retry(
+        gemini_res = await with_retry(
             chain.ainvoke,
             {
                 "question": question_text,
@@ -151,12 +165,15 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
                 "history_summary": history_summary,
             }
         )
+        result: EvaluatorCoachOutput = gemini_res.data
         exec_time = time.time() - start_time
         log_agent_execution(
             session_id="N/A",
             agent_name="Evaluator Coach",
             execution_time=exec_time,
             model="gemini-2.5-flash",
+            prompt_tokens=gemini_res.input_tokens,
+            completion_tokens=gemini_res.output_tokens,
             success=True,
             final_status="OK"
         )
@@ -168,7 +185,7 @@ async def evaluator_coach_node(state: InterviewState) -> dict:
             strengths=result.strengths,
             weaknesses=result.weaknesses,
             suggestion=result.suggestion,
-            ideal_answer=result.ideal_answer,
+            ideal_answer=result.model_answer,
         )
 
         # Build follow-up question dict if needed
