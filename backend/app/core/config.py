@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Application
-    app_name: str = "AI Interview Coach"
+    app_name: str = "SkillMock"
     debug: bool = False
 
     # Database
@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # Speech Recognition
     speech_provider: str = "browser"    # "browser" | "faster-whisper"
     whisper_model: str = "base"         # tiny | base | small | medium | large-v3
+
+    # Cloudinary
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
 
     model_config = {
         "env_file": ".env",

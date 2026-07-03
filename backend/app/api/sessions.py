@@ -411,8 +411,12 @@ async def get_sessions(
                 state_tuple = await graph.aget_state({"configurable": {"thread_id": str(s.id)}})
                 if state_tuple and state_tuple.values:
                     profile = state_tuple.values.get("candidate_profile")
-                    if profile and "ats_breakdown" in profile:
-                        ats_data = profile["ats_breakdown"]
+                    if profile:
+                        if hasattr(profile, "ats_breakdown") and getattr(profile, "ats_breakdown"):
+                            ats_obj = getattr(profile, "ats_breakdown")
+                            ats_data = ats_obj.model_dump() if hasattr(ats_obj, "model_dump") else ats_obj
+                        elif isinstance(profile, dict) and profile.get("ats_breakdown"):
+                            ats_data = profile["ats_breakdown"]
             except Exception:
                 pass
 

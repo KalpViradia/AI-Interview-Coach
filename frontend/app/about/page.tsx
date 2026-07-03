@@ -24,7 +24,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30 font-sans pb-48">
       {/* Background styling */}
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-black to-black"></div>
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/10 via-black to-black"></div>
 
       {/* Back Button */}
       <div className="absolute top-6 left-6 md:top-10 md:left-10 z-50">
@@ -46,14 +46,14 @@ export default function AboutPage() {
           className="mx-auto max-w-3xl text-center"
         >
           <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl mb-6">
-            AI Interview Coach
+            About SkillMock
           </h1>
           <p className="text-xl leading-8 text-indigo-200 mb-6 font-medium">
-            Personalized Interview Preparation, Powered by AI Agents
+            AI-Powered Interview Preparation, Tailored to Your Resume
           </p>
           <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-            Practice interviews tailored to your resume, identify ATS issues, 
-            and receive actionable feedback to improve your interview readiness.
+            AI-powered interview preparation tailored to your resume and career goals.
+            Practice personalized interviews, identify ATS issues, and receive actionable feedback.
           </p>
           <p className="text-base text-zinc-500 mt-2 mb-10 max-w-xl mx-auto italic">
             Built for students and professionals who want more than generic practice.
@@ -102,7 +102,7 @@ export default function AboutPage() {
           <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
             <p className="text-xl font-medium text-indigo-100 leading-relaxed relative z-10">
-              AI Coach solves this by understanding your resume and generating personalized interview preparation.
+              SkillMock solves this by understanding your resume and generating personalized interview preparation.
             </p>
           </div>
         </motion.div>
@@ -111,7 +111,7 @@ export default function AboutPage() {
       {/* 3. The Solution */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 mb-32">
         <div className="mb-12 text-center">
-          <h2 className="text-3xl font-bold text-white">What AI Coach Does</h2>
+          <h2 className="text-3xl font-bold text-white">What SkillMock Does</h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -151,7 +151,7 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* 4. How AI Coach Works */}
+      {/* 4. How SkillMock Works */}
       <div id="workflow" className="mx-auto max-w-5xl px-6 lg:px-8 mb-32 pt-8">
         <div className="bg-indigo-950/10 border border-indigo-500/10 rounded-3xl p-8 md:p-12">
           <div className="text-center mb-16">
@@ -246,10 +246,10 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* 5. Why AI Coach is Different */}
+      {/* 5. Why SkillMock is Different */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 mb-32">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white">Why AI Coach is Different</h2>
+          <h2 className="text-3xl font-bold text-white">Why SkillMock is Different</h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

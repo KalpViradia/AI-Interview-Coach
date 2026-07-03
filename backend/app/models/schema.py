@@ -8,7 +8,7 @@ Uses JSONB for *_json columns (Postgres-native).
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, String, Integer, Float, Text, DateTime, ForeignKey, Enum
+    Column, String, Integer, Float, Text, DateTime, ForeignKey, Enum, Boolean
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -26,7 +26,8 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False, default="Demo User")
-    target_role = Column(String(255), default="")
+    avatar_url = Column(String(500), nullable=True)
+    avatar_public_id = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # Relationships
@@ -47,6 +48,9 @@ class Resume(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_used = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     file_size = Column(Integer, default=0)
+    cloudinary_url = Column(String(500), nullable=True)
+    public_id = Column(String(255), nullable=True)
+    embedding_status = Column(String(50), nullable=True, default="PENDING")
     
     # Relationships
     user = relationship("User", back_populates="resumes")

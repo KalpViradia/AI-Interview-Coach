@@ -6,11 +6,11 @@ import { motion } from "framer-motion";
 import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, MessageSquare, Target, LogIn, Sparkles } from "lucide-react";
 import { getSessionTranscript, TranscriptTurn } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
-import SidebarLayout from "@/components/SidebarLayout";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import TranscriptSkeleton from "@/components/skeletons/TranscriptSkeleton";
 import BackToTop from "@/components/ui/BackToTop";
+import PageHeader from "@/components/ui/PageHeader";
 
 function TranscriptContent() {
   const router = useRouter();
@@ -51,17 +51,14 @@ function TranscriptContent() {
 
   if (loading) {
     return (
-      <SidebarLayout>
-        <TranscriptSkeleton />
-      </SidebarLayout>
-    );
+              <TranscriptSkeleton />
+          );
   }
 
   // Guest mode — show sign-in prompt
   if (isGuest) {
     return (
-      <SidebarLayout>
-        <div className="h-full w-full flex flex-col items-center justify-center text-white p-6">
+              <div className="h-full w-full flex flex-col items-center justify-center text-white p-6">
           <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20 mb-6 shadow-[0_0_30px_rgba(99,102,241,0.2)]">
             <Sparkles className="w-10 h-10 text-indigo-400" />
           </div>
@@ -76,14 +73,12 @@ function TranscriptContent() {
             </Link>
           </div>
         </div>
-      </SidebarLayout>
-    );
+          );
   }
 
   if (error || transcript.length === 0) {
     return (
-      <SidebarLayout>
-        <div className="h-full w-full flex flex-col items-center justify-center text-white p-6">
+              <div className="h-full w-full flex flex-col items-center justify-center text-white p-6">
           <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
           <h2 className="text-xl font-bold mb-2">Transcript Unavailable</h2>
           <p className="text-zinc-400 mb-6">{error || "No questions found for this session."}</p>
@@ -91,28 +86,19 @@ function TranscriptContent() {
             Return to Dashboard
           </Link>
         </div>
-      </SidebarLayout>
-    );
+          );
   }
 
   return (
-    <SidebarLayout>
-      <div className="text-zinc-50 py-12 px-6 sm:px-12 flex justify-center">
-        <div className="w-full max-w-4xl space-y-8">
+          <div className="text-zinc-50 py-12 px-6 sm:px-12 flex justify-center">
+        <div className="w-full max-w-[1100px] space-y-8">
           
-          {/* Header */}
-        <div className="flex items-center gap-4 border-b border-zinc-800 pb-6 mb-8">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-full hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Interview Transcript</h1>
-            <p className="text-sm text-zinc-400">Review your questions, answers, and detailed feedback.</p>
-          </div>
-        </div>
+          <PageHeader 
+            title="Interview Transcript"
+            subtitle="Review every question, your answer, and AI feedback."
+            backHref="/dashboard"
+            backText="Back"
+          />
 
         {/* Transcript Timeline */}
         <div className="space-y-12">
@@ -205,23 +191,42 @@ function TranscriptContent() {
             </motion.div>
           ))}
         </div>
+        
+        {/* Actions */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-12"
+        >
+          <Link
+            href={`/report?session_id=${sessionId}`}
+            className="flex items-center gap-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-white px-8 py-4 text-sm font-bold transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95 shadow-lg"
+          >
+            View Report
+          </Link>
+          <Link
+            href="/upload"
+            className="group flex items-center gap-2 rounded-2xl bg-white text-black px-8 py-4 text-sm font-black transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+          >
+            Start New Interview
+          </Link>
+        </motion.div>
         </div>
       </div>
-    </SidebarLayout>
-  );
+      );
 }
 
 export default function TranscriptPage() {
   return (
     <>
       <Suspense fallback={
-        <SidebarLayout>
-          <TranscriptSkeleton />
-        </SidebarLayout>
-      }>
+                  <TranscriptSkeleton />
+              }>
         <TranscriptContent />
       </Suspense>
       <BackToTop />
     </>
   );
 }
+

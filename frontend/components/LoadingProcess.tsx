@@ -37,39 +37,15 @@ export default function LoadingProcess({
     : Math.round(((currentStepIndex) / totalSteps) * 100);
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col items-center py-12">
+    <div className="w-full max-w-2xl mx-auto flex flex-col items-center pt-2 pb-8">
       {/* Title & Description */}
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-4 flex items-center justify-center gap-3">
-          🧠 {title}
+      <div className="text-center mb-10 flex flex-col items-center">
+        <h1 className="text-3xl font-bold tracking-tight text-white mb-3">
+          {title}
         </h1>
-        <p className="text-zinc-400">
+        <p className="text-zinc-400 text-sm">
           {description}
         </p>
-      </div>
-
-      {/* Animated Orb */}
-      <div className="mb-12 relative flex justify-center items-center">
-        <div className="w-32 h-32 rounded-full bg-indigo-500/5 flex items-center justify-center relative">
-          {/* Subtle rotating particles / ring */}
-          <motion.div 
-            className="absolute inset-0 rounded-full border border-indigo-500/10 border-t-indigo-500/30 border-r-indigo-500/30"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-          />
-          {/* Outer glow */}
-          <motion.div 
-            className="absolute inset-2 rounded-full bg-indigo-500/10 blur-xl"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          {/* Inner core */}
-          <motion.div
-            className="w-16 h-16 rounded-full bg-indigo-600 shadow-[0_0_40px_rgba(99,102,241,0.5)] z-10"
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </div>
       </div>
 
       {/* Progress Indicator */}

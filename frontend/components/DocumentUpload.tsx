@@ -38,7 +38,9 @@ export default function DocumentUpload({
   maxSize = 5 * 1024 * 1024,
   icon,
 }: DocumentUploadProps) {
-  const [activeTab, setActiveTab] = useState<"upload" | "paste">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "paste">(
+    (!file && text) ? "paste" : "upload"
+  );
   const [internalError, setInternalError] = useState("");
 
   const displayError = internalError || error;
@@ -196,6 +198,9 @@ export default function DocumentUpload({
                 value={text}
                 onChange={(e) => {
                   onTextChange(e.target.value);
+                  if (file) {
+                    onFileChange(null);
+                  }
                   setInternalError("");
                   if (onClearError) onClearError();
                 }}

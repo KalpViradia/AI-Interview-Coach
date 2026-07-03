@@ -27,11 +27,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-50 selection:bg-indigo-500/30 flex flex-col">
+      {/* Background glow — fixed to viewport to avoid banding */}
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>
       {/* Navbar */}
       <nav className="absolute top-0 w-full flex justify-between items-center p-6 z-10 max-w-7xl mx-auto left-0 right-0">
         <div className="flex items-center gap-2">
-          <img src="/icon.png" alt="AI Coach Logo" className="w-8 h-8 rounded-lg shadow-md shadow-indigo-500/20" />
-          <span className="font-bold text-lg">AI Coach</span>
+          <img src="/icon.png" alt="SkillMock Logo" className="w-8 h-8 rounded-lg shadow-md shadow-indigo-500/20" />
+          <span className="font-bold text-lg">SkillMock</span>
         </div>
         <div className="flex items-center gap-6">
           {status === "authenticated" ? (
@@ -56,8 +58,7 @@ export default function Home() {
 
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8 py-24 sm:py-32">
         
-        {/* Background glow */}
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/40 via-black to-black"></div>
+        {/* Removed per-section gradient — using fixed viewport-level gradient instead */}
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -147,7 +148,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Why AI Coach Section */}
+        {/* Why SkillMock Section */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -156,7 +157,7 @@ export default function Home() {
         >
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tight text-white mb-4">
-              Why AI Coach?
+              Why SkillMock?
             </h2>
             <p className="text-zinc-400">
               Not all interview prep is equal.
@@ -185,12 +186,12 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* AI Coach column */}
+            {/* SkillMock column */}
             <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-3xl p-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-24 bg-indigo-500/10 blur-3xl rounded-full
                               -mr-12 -mt-12 pointer-events-none"></div>
               <h3 className="text-sm font-semibold text-indigo-400 uppercase tracking-wider mb-6 relative z-10">
-                AI Coach
+                SkillMock
               </h3>
               <ul className="space-y-4 relative z-10">
                 {[

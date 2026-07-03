@@ -5,8 +5,8 @@ test.describe('Authentication Flow', () => {
     // Start at homepage
     await page.goto('/');
     
-    // Expect the title to contain AI Interview Coach
-    await expect(page).toHaveTitle(/AI Interview Coach|Create Next App/);
+    // Expect the title to contain SkillMock
+    await expect(page).toHaveTitle(/SkillMock|Create Next App/);
     
     // Check if the Sign In button is present in navbar or hero
     // Since user is not logged in, we should see "Log In" or "Sign In"

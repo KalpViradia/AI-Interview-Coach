@@ -13,6 +13,7 @@ interface DialogOptions {
   confirmText?: string;
   cancelText?: string;
   cancelVariant?: "neutral" | "primary";
+  hideCancel?: boolean;
   defaultValue?: string;
   onConfirm?: (value?: string) => void;
   onCancel?: () => void;
@@ -194,13 +195,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               
               {options.type !== "loading" && (
                 <div className="bg-zinc-950/50 p-4 border-t border-zinc-800 flex justify-end gap-3">
-                  {(options.type === "confirm" || options.type === "prompt") && (
+                  {(options.type === "confirm" || options.type === "prompt") && !options.hideCancel && (
                     <button
                       onClick={closeDialog}
                       className={
                         options.cancelVariant === "primary"
-                          ? "px-6 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                          : "px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+                          ? "px-6 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 hover:scale-105 active:scale-95"
+                          : "px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 active:scale-95"
                       }
                     >
                       {options.cancelText || "Cancel"}
@@ -209,7 +210,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   <button
                     ref={confirmBtnRef}
                     onClick={(options.type === "confirm" || options.type === "prompt") ? handleConfirm : closeDialog}
-                    className={`px-6 py-2 rounded-xl text-sm font-semibold text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
+                    className={`px-6 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
                       options.type === "confirm" 
                         ? "bg-red-600 hover:bg-red-500 focus-visible:ring-red-500" 
                         : options.type === "success"

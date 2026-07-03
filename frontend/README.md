@@ -1,6 +1,6 @@
-# AI Interview Coach - Frontend
+# SkillMock - Frontend
 
-This is the Next.js frontend for the AI Interview Coach platform. It provides an intuitive, responsive user interface to upload resumes, interact with the mock interview AI, view real-time chat evaluations, and review final interview reports.
+This is the Next.js frontend for the SkillMock platform. It provides an intuitive, responsive user interface to upload resumes, interact with the mock interview AI, view real-time chat evaluations, and review final interview reports.
 
 ## Setup Instructions
 
@@ -19,11 +19,12 @@ The application will be accessible at `http://localhost:3000`.
 
 ## Key Features
 
-- **Dashboard:** Track mock interview scores, skill trends, and past sessions.
-- **ATS Checker:** Upload your resume and match it against job descriptions to discover missing skills and weaknesses.
-- **Mock Interviews:** Chat-based interface with an adaptive AI interviewer.
+- **Unified Dashboard Architecture:** We've refactored the application to use a unified `(dashboard)` layout. All pages—ATS Analysis, Interview Mocking, Resume Vault, and Past Sessions—now live seamlessly inside a beautiful side-navigated layout.
+- **ATS & Resume Checker:** Upload your resume and match it against job descriptions to discover missing skills, semantic matches, and targeted weaknesses in an easily scannable, animated UI.
+- **Smart Uploads:** State-of-the-art document upload components that handle file drops, clipboard pasting, and rate-limit persistence so you never lose your data.
+- **Animated Workflow:** Custom `LoadingProcess` components that visually track the AI's exact step-by-step progress when preparing your session.
+- **Mock Interviews:** Chat-based interface with an adaptive AI interviewer and real-time score tracking.
 - **Resume Chat:** Context-aware Resume Chat powered by Retrieval-Augmented Generation (RAG).
-- **Detailed Reports:** Visualizations (using Recharts) to analyze your technical and communication performance.
 
 ## Key Technologies
 

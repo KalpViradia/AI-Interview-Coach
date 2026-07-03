@@ -119,6 +119,7 @@ export default function AnalysisPanel({ resumeId }: AnalysisPanelProps) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
             <div className="p-6 space-y-6">

@@ -32,6 +32,9 @@ SYSTEM_PROMPT = """You are an expert technical recruiter and AI Interview Coach.
 Your task is to analyze a candidate's resume and a target job description (JD).
 Extract the candidate's core skills, key projects, their overall experience level, and identify any major skill gaps when compared to the job description.
 
+For `experience_level`, provide ONLY a concise 1-3 word label (e.g., Fresher, Intern, Entry Level, Mid-Level, Senior).
+For `experience_details`, provide a detailed explanation of their background (education, graduation dates, work duration, etc.) justifying the label.
+
 Output this information strictly according to the required schema."""
 
 analyzer_prompt = ChatPromptTemplate.from_messages([

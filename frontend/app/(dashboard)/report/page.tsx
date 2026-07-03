@@ -9,10 +9,10 @@ import {
   BarChart, AlertTriangle, RefreshCcw, Home, CheckCircle, Sparkles, UserPlus
 } from "lucide-react";
 import { SessionReport, getSessionTranscript, getSessionState, TranscriptTurn } from "@/lib/api-client";
-import SidebarLayout from "@/components/SidebarLayout";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import ReportSkeleton from "@/components/skeletons/ReportSkeleton";
+import PageHeader from "@/components/ui/PageHeader";
 
 function ReportContent() {
   const router = useRouter();
@@ -61,6 +61,7 @@ function ReportContent() {
         setTranscript(data);
       } catch (err) {
         console.error("Failed to fetch report data:", err);
+        router.replace(isGuest ? "/" : "/dashboard");
       } finally {
         setIsLoading(false);
       }
@@ -71,10 +72,8 @@ function ReportContent() {
 
   if (isLoading || !report) {
     return (
-      <SidebarLayout>
-        <ReportSkeleton />
-      </SidebarLayout>
-    );
+              <ReportSkeleton />
+          );
   }
 
   // Determine color based on score (0-10 scale)
@@ -103,9 +102,15 @@ function ReportContent() {
   const skippedCount = transcript.filter(t => t.answer === "__SKIP__" || t.answer === "[SKIPPED]").length;
 
   return (
-    <SidebarLayout>
-      <div className="text-zinc-50 py-12 px-6 sm:px-12 flex justify-center">
-        <div className="w-full max-w-5xl space-y-8">
+          <div className="text-zinc-50 py-12 px-6 sm:px-12 flex justify-center">
+        <div className="w-full max-w-[1100px] space-y-8">
+          
+          <PageHeader 
+            title="Interview Report"
+            subtitle="Overall interview performance and personalized feedback."
+            backHref="/dashboard"
+            backText="Back"
+          />
           
           {/* ── READINESS BADGE ── */}
           <motion.div
@@ -156,20 +161,7 @@ function ReportContent() {
             ))}
           </motion.div>
 
-          <div className="text-center mb-12">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", bounce: 0.5 }}
-              className="w-20 h-20 mx-auto bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20 mb-6 shadow-[0_0_30px_rgba(99,102,241,0.2)]"
-            >
-              <Trophy className="w-10 h-10 text-indigo-400" />
-            </motion.div>
-            <h1 className="text-3xl font-bold text-white mb-4">Interview Complete</h1>
-            <p className="text-zinc-400 max-w-2xl mx-auto">
-              Great job! We&apos;ve analyzed your answers across all questions. Here is your personalized feedback and learning roadmap.
-            </p>
-          </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Main Score Card */}
@@ -333,47 +325,35 @@ function ReportContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-12"
+            className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-12 border-t border-zinc-800 mt-12"
           >
-            {isGuest ? (
+            {!isGuest && (
               <Link
-                href="/upload"
+                href={`/transcript?session_id=${sessionId}`}
                 className="flex items-center gap-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-white px-8 py-4 text-sm font-bold transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95 shadow-lg"
               >
-                <Home className="w-5 h-5" />
-                Back to Home
-              </Link>
-            ) : (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-white px-8 py-4 text-sm font-bold transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95 shadow-lg"
-              >
-                <Home className="w-5 h-5" />
-                Back to Dashboard
+                View Transcript
               </Link>
             )}
             <Link
               href="/upload"
               className="group flex items-center gap-2 rounded-2xl bg-white text-black px-8 py-4 text-sm font-black transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
-              <RefreshCcw className="w-5 h-5 transition-transform group-hover:-rotate-180" />
-              Start Another Session
+              Start New Interview
             </Link>
           </motion.div>
         </div>
       </div>
-    </SidebarLayout>
-  );
+      );
 }
 
 export default function ReportPage() {
   return (
     <Suspense fallback={
-      <SidebarLayout>
-        <ReportSkeleton />
-      </SidebarLayout>
-    }>
+              <ReportSkeleton />
+          }>
       <ReportContent />
     </Suspense>
   );
 }
+

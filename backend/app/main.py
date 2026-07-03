@@ -1,5 +1,5 @@
 """
-AI Interview Coach — FastAPI Backend
+SkillMock — FastAPI Backend
 
 Entry point for the application.
 """
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
         yield
 
 app = FastAPI(
-    title="AI Interview Coach",
+    title="SkillMock",
     description="AI-powered interview preparation with multi-agent orchestration",
     version="0.1.0",
     lifespan=lifespan,
@@ -123,7 +123,7 @@ async def system_stats():
         }
     }
 
-from app.api import sessions, upload, auth, resume_chat, resumes
+from app.api import sessions, upload, auth, resume_chat, resumes, users
 from app.agents.graph import builder
 
 # Setup slowapi rate limiter
@@ -156,6 +156,7 @@ app.include_router(sessions.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(resume_chat.router, prefix="/api")
 app.include_router(resumes.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 # Global Exception Handler for Unhandled Exceptions (Fixes CORS on 500)
 from fastapi import Request

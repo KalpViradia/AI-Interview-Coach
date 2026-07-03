@@ -303,6 +303,28 @@ export async function registerUser(name: string, email: string, password: string
 }
 
 // -----------------------------------------------------------------------------
+// User Profile APIs
+// -----------------------------------------------------------------------------
+
+export interface UserProfileResponse {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  avatar_url?: string;
+  
+  // Stats
+  resume_count: number;
+  interviews_taken: number;
+  ats_checks_run: number;
+  average_score?: number;
+}
+
+export async function getMyProfile(): Promise<UserProfileResponse> {
+  return apiFetch<UserProfileResponse>("/users/me");
+}
+
+// -----------------------------------------------------------------------------
 // Resume Vault APIs
 // -----------------------------------------------------------------------------
 
@@ -314,6 +336,7 @@ export interface ResumeResponse {
   last_used: string;
   file_size: number;
   interview_count: number;
+  cloudinary_url?: string;
 }
 
 export interface ResumeDetailResponse extends ResumeResponse {
@@ -435,7 +458,7 @@ export async function downloadResume(resumeId: string, filename: string): Promis
   const a = document.createElement("a");
   a.href = url;
   
-  // Replace .pdf with .txt since backend only stores raw text
+  // Replace .pdf with .txt since backend only stores raw text unless we have cloudinary
   let finalFilename = filename;
   if (finalFilename.toLowerCase().endsWith('.pdf')) {
     finalFilename = finalFilename.substring(0, finalFilename.length - 4) + '.txt';
@@ -547,3 +570,15 @@ export async function getConfig(): Promise<AppConfig> {
   return apiFetch<AppConfig>("/config");
 }
 
+/**
+ * Optimizes a Cloudinary image URL for avatars
+ */
+export function getOptimizedAvatarUrl(url?: string): string {
+  if (!url) return "";
+  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+    if (!url.includes("/upload/q_auto")) {
+      return url.replace("/upload/", "/upload/q_auto,f_auto,w_256,h_256,c_fill/");
+    }
+  }
+  return url;
+}

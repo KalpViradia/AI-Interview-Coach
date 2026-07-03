@@ -25,7 +25,8 @@ class CandidateProfile(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=False)
     skills: List[str] = Field(default_factory=list)
     projects: List[str] = Field(default_factory=list)
-    experience_level: str = ""
+    experience_level: str = Field(default="", description="A concise, 1-3 word label (e.g., Fresher, Intern, Entry Level, Mid-Level, Senior, Lead, Executive)")
+    experience_details: str = Field(default="", description="A detailed explanation of the candidate's education, internship duration, and reasoning for the experience level")
     gaps_vs_jd: List[str] = Field(default_factory=list)
     ats_breakdown: Optional[ATSBreakdown] = None
 

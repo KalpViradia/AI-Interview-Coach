@@ -1,8 +1,8 @@
-# 🎯 AI Interview Coach
+# 🎯 SkillMock — AI Interview Coach
 
 > An intelligent interview preparation platform powered by AI.
 
-🌐 [Live Demo](https://ai-interview-coach-dev.vercel.app)
+🌐 [Live Demo](https://skillmock.vercel.app)
 
 [![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -17,7 +17,7 @@
 
 ## ✨ What It Does
 
-AI Interview Coach is a full-stack application that simulates a real technical job interview. Unlike static flashcard apps, it:
+SkillMock is a full-stack AI interview preparation platform that simulates a real technical job interview. Unlike static flashcard apps, it:
 
 - **Analyzes your resume and job description** to create a personalized candidate profile
 - **Adapts question difficulty in real time** based on how well you answer (1–5 scale)
@@ -27,37 +27,24 @@ AI Interview Coach is a full-stack application that simulates a real technical j
 
 ---
 
-## 📸 Screenshots
-
-*Replace the placeholders with actual image paths*
-
-- **Landing Page**: `![Landing Page](path/to/landing.png)`
-- **ATS Analysis**: `![ATS Analysis](path/to/ats.png)`
-- **Interview Screen**: `![Interview Screen](path/to/interview.png)`
-- **Final Report**: `![Final Report](path/to/report.png)`
-- **Dashboard**: `![Dashboard](path/to/dashboard.png)`
-
----
-
 ## 🚀 Features
 
 ### Resume Intelligence
-- Resume Analysis
-- ATS Score
-- Missing Skills
-- Resume Chat
+- **Deep Resume Analysis**: Cloudinary-powered PDF parsing for high accuracy.
+- **ATS Score & Match Breakdown**: Real-time semantic analysis between your resume and a Job Description.
+- **Missing Skills Identification**: Extract precise technical gaps and recommendations.
+- **Resume Chat**: Context-aware retrieval augmented generation (RAG) to chat with your own resume.
 
 ### AI Interview
-- Adaptive Mock Interviews
-- Personalized Questions
-- Follow-up Questions
-- Difficulty Adjustment
+- **Adaptive Mock Interviews**: Difficulty scales dynamically based on performance.
+- **Personalized Questions**: Generated instantly based on your parsed experience level (e.g. Fresher, Mid-Level).
+- **Follow-up Questions**: The AI probes deeper into your answers like a real interviewer.
 
-### Reports
-- Interview Feedback
-- Learning Roadmap
-- Dashboard
-- Progress Tracking
+### Reports & Dashboard
+- **Unified Dashboard**: All your analysis, past interviews, and saved resumes in one clean, animated interface.
+- **Detailed Interview Feedback**: Per-question scoring, strengths, weaknesses, and ideal answers.
+- **Learning Roadmap**: Automated post-interview study plans.
+- **Progress Tracking**: Resume vault to store and track multiple versions of your resume.
 
 ### Authentication
 - Guest Mode
@@ -91,6 +78,7 @@ AI Interview Coach
 │
 ├── frontend
 │   ├── app
+│   │   └── (dashboard)    <-- Unified Dashboard Layout
 │   ├── components
 │   ├── hooks
 │   ├── lib
@@ -99,7 +87,7 @@ AI Interview Coach
 ├── backend
 │   ├── agents
 │   ├── api
-│   ├── core
+│   ├── core               <-- Cloudinary Utils & Rate Limiting
 │   ├── database
 │   ├── models
 │   ├── services

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { UploadCloud, Send, FileText, BrainCircuit, Loader2, Bot, User, CheckCircle2 } from "lucide-react";
-import SidebarLayout from "@/components/SidebarLayout";
 import DocumentUpload from "@/components/DocumentUpload";
 import ReactMarkdown from "react-markdown";
 import { useSession } from "next-auth/react";
@@ -22,6 +21,42 @@ type Message = {
 import { Suspense } from "react";
 import BackToTop from "@/components/ui/BackToTop";
 
+function ChatInputForm({ onSend, isTyping }: { onSend: (text: string) => void, isTyping: boolean }) {
+  const [input, setInput] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isTyping) return;
+    onSend(input);
+    setInput("");
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="relative flex items-end">
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e as unknown as React.FormEvent);
+          }
+        }}
+        rows={Math.min(5, Math.max(1, input.split('\n').length))}
+        placeholder="Ask a question about your resume..."
+        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-4 pl-6 pr-16 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none overflow-y-auto custom-scrollbar"
+      />
+      <button
+        type="submit"
+        disabled={!input.trim() || isTyping}
+        className="absolute right-2 bottom-2 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-50 disabled:bg-zinc-800 disabled:text-zinc-500 transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(79,70,229,0.3)] disabled:shadow-none disabled:hover:scale-100"
+      >
+        <Send className="w-5 h-5" />
+      </button>
+    </form>
+  );
+}
+
 function ResumeChatContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -37,7 +72,6 @@ function ResumeChatContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,12 +151,10 @@ function ResumeChatContent() {
     }
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !sessionId || isTyping) return;
+  const handleSend = async (queryText: string) => {
+    if (!queryText.trim() || !sessionId || isTyping) return;
 
-    const query = input.trim();
-    setInput("");
+    const query = queryText.trim();
     
     setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: query }]);
     setIsTyping(true);
@@ -148,8 +180,7 @@ function ResumeChatContent() {
   };
 
   return (
-    <SidebarLayout>
-      <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] p-4 md:p-8 max-w-6xl mx-auto w-full relative">
+          <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] p-4 md:p-8 max-w-6xl mx-auto w-full relative">
         {/* Background glow */}
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>
 
@@ -307,34 +338,12 @@ function ResumeChatContent() {
 
             {/* Input Form */}
             <div className="p-4 bg-zinc-900 border-t border-zinc-800">
-              <form onSubmit={handleSend} className="relative flex items-end">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend(e as unknown as React.FormEvent);
-                    }
-                  }}
-                  rows={Math.min(5, Math.max(1, input.split('\n').length))}
-                  placeholder="Ask a question about your resume..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-4 pl-6 pr-16 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none overflow-y-auto custom-scrollbar"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isTyping}
-                  className="absolute right-2 bottom-2 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-50 disabled:bg-zinc-800 disabled:text-zinc-500 transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(79,70,229,0.3)] disabled:shadow-none disabled:hover:scale-100"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              </form>
+              <ChatInputForm onSend={handleSend} isTyping={isTyping} />
             </div>
           </div>
         )}
       </div>
-    </SidebarLayout>
-  );
+      );
 }
 
 export default function ResumeChatPage() {
@@ -347,3 +356,4 @@ export default function ResumeChatPage() {
     </>
   );
 }
+

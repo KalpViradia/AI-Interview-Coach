@@ -1,6 +1,6 @@
-# AI Interview Coach - Backend
+# SkillMock - Backend
 
-This is the FastAPI backend for the AI Interview Coach. It serves as the core orchestration layer, using LangGraph to manage the state of an interview and interact with the Gemini API to analyze resumes and conduct mock interviews.
+This is the FastAPI backend for SkillMock. It serves as the core orchestration layer, using LangGraph to manage the state of an interview and interact with the Gemini API to analyze resumes and conduct mock interviews.
 
 ## Setup Instructions
 
@@ -39,6 +39,6 @@ The API will be running at `http://localhost:8000`. You can access the automatic
 - **LangGraph**: Used to construct the multi-agent system (Analyzer, Interviewer, Evaluator, Coach).
 - **PostgreSQL & SQLAlchemy**: The relational database used to store users, sessions, questions, answers, and reports.
 - **ChromaDB**: The vector database used to retrieve relevant questions during the interview.
-- **LLM Provider**: The underlying LLM used for text generation, extraction, and evaluation.
-
-
+- **Gemini 2.5 Flash**: Optimized LLM interaction via structured JSON outputs and explicit schema extraction.
+- **Cloudinary**: Handles high-performance document uploads and text parsing directly from PDFs and DOCXs.
+- **Smart Rate Limiting**: Built-in exponential backoff and retry logic in `gemini_retry.py` for handling LLM quotas robustly.

@@ -36,6 +36,7 @@ export function AnswerEvaluationCard({ evaluation }: AnswerEvaluationCardProps) 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
             <div className="pt-8 mt-6 border-t border-zinc-800">

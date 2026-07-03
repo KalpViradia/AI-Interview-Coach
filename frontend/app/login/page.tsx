@@ -35,17 +35,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center p-6">
-      <Link
-        href="/upload"
+      <button
+        type="button"
+        onClick={() => router.back()}
         className="absolute top-6 left-6 flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Home
-      </Link>
+        Back
+      </button>
       <div className="w-full max-w-md bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4">
-            <img src="/icon.png" alt="AI Coach Logo" className="w-16 h-16 rounded-2xl shadow-xl shadow-indigo-500/20" />
+            <img src="/icon.png" alt="SkillMock Logo" className="w-16 h-16 rounded-2xl shadow-xl shadow-indigo-500/20" />
           </div>
           <h1 className="text-2xl font-bold">Welcome back</h1>
           <p className="text-zinc-400 text-sm mt-1">Sign in to continue your interview prep.</p>

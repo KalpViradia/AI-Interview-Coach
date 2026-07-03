@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Briefcase, Loader2, ArrowRight, UploadCloud, CheckCircle2, User, Target, FileSearch } from "lucide-react";
 import { uploadDocument, getResumes, ResumeResponse, managedFetch, APIError } from "@/lib/api-client";
 import DocumentUpload from "@/components/DocumentUpload";
-import SidebarLayout from "@/components/SidebarLayout";
 import LoadingProcess from "@/components/LoadingProcess";
 import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
 import { useSession } from "next-auth/react";
@@ -19,7 +18,7 @@ function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-  const { showPrompt } = useDialog();
+  const { showPrompt, showConfirm } = useDialog();
   
   const isAtsMode = searchParams.get("mode") === "ats";
   
@@ -49,14 +48,21 @@ function UploadContent() {
     if (isAuthenticated) {
       getResumes().then(data => {
         setResumes(data);
-        if (data.length > 0) {
-          setResumeSource("vault");
-          const targetId = searchParams.get("resumeId");
+        const targetId = searchParams.get("resumeId");
+        if (targetId) {
           const exists = data.find(r => r.id === targetId);
-          setSelectedResumeId(exists ? exists.id : data[0].id);
+          if (exists) {
+            setResumeSource("vault");
+            setSelectedResumeId(exists.id);
+          }
+        } else if (data.length > 0) {
+          // Initialize defaults only if nothing is selected yet
+          setSelectedResumeId(prev => prev || data[0].id);
+          setResumeSource(prev => (prev === "upload" && !resumeText && !resumeFile) ? "vault" : prev);
         }
       }).catch(err => console.error("Failed to fetch resumes", err));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, searchParams]);
 
   useEffect(() => {
@@ -67,6 +73,57 @@ function UploadContent() {
       setInterviewType((prev) => prev === "ats_check" ? "general" : prev);
     }
   }, [isAtsMode]);
+
+  // Activate workflow guard during any processing (session creation, ATS analysis, PDF parsing)
+  useEffect(() => {
+    if (isProcessing) {
+      workflowState.isActive = true;
+
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      };
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      // SPA Back Button Trap
+      window.history.pushState(null, "", window.location.href);
+      
+      const handlePopState = () => {
+        window.history.pushState(null, "", window.location.href);
+        
+        showConfirm({
+          title: "Cancel Processing?",
+          message: "Your session is currently being prepared. Leaving now will cancel the ongoing analysis and you will need to start over.",
+          confirmText: "Leave Anyway",
+          cancelText: "Wait",
+          cancelVariant: "primary",
+          onConfirm: () => {
+            workflowState.isActive = false;
+            window.removeEventListener("popstate", handlePopState);
+            router.back();
+          }
+        });
+      };
+      
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+        workflowState.isActive = false;
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.removeEventListener("popstate", handlePopState);
+      };
+    } else {
+      workflowState.isActive = false;
+    }
+  }, [isProcessing, showConfirm, router]);
+
+  // Clean up workflow state on unmount (e.g. navigation completes)
+  useEffect(() => {
+    return () => {
+      workflowState.isActive = false;
+    };
+  }, []);
 
   const handleUploadResume = async (file: File) => {
     setPdfLoadingResume(true);
@@ -103,7 +160,6 @@ function UploadContent() {
     const doSubmit = async (finalResumeText: string) => {
       setLoading(true);
       setError("");
-      workflowState.isActive = true;
 
       try {
         const payload: Record<string, string> = {
@@ -134,7 +190,6 @@ function UploadContent() {
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to start interview.");
-        workflowState.isActive = false;
       } finally {
         setLoading(false);
       }
@@ -178,8 +233,7 @@ function UploadContent() {
   );
 
   return (
-    <SidebarLayout>
-      <div className="min-h-screen bg-black text-zinc-50 flex flex-col items-center py-12 px-4 relative overflow-y-auto">
+          <div className="min-h-screen bg-black text-zinc-50 flex flex-col items-center py-12 px-4 relative overflow-y-auto">
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black"></div>
         
         <AnimatePresence mode="wait">
@@ -200,19 +254,18 @@ function UploadContent() {
               steps={
                 interviewType === "job_specific" || interviewType === "ats_check"
                   ? [
-                      "Uploading documents",
-                      "Parsing resume & JD",
+                      "Resume loaded",
+                      "Parsing job description",
                       "Analyzing semantic match",
                       "Extracting skills gap",
                       "Generating final report",
                     ]
                   : [
-                      "Uploading resume",
-                      "Parsing resume content",
+                      "Resume loaded",
+                      "Building AI profile",
                       "Extracting technical skills",
                       "Understanding your experience",
-                      "Generating personalized interview questions",
-                      "Finalizing interview session",
+                      "Generating personalized interview",
                     ]
               }
             />
@@ -370,18 +423,16 @@ function UploadContent() {
         )}
         </AnimatePresence>
       </div>
-    </SidebarLayout>
-  );
+      );
 }
 
 export default function UploadPage() {
   return (
     <Suspense fallback={
-      <SidebarLayout>
-        <UploadSkeleton />
-      </SidebarLayout>
-    }>
+              <UploadSkeleton />
+          }>
       <UploadContent />
     </Suspense>
   );
 }
+

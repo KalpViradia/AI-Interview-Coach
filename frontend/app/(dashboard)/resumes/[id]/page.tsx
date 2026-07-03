@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SidebarLayout from "@/components/SidebarLayout";
 import { getResumeDetails, ResumeDetailResponse, deleteResume } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
@@ -69,20 +68,17 @@ export default function ResumeViewerPage() {
 
   if (loading || !resume) {
     return (
-      <SidebarLayout>
-        <div className="flex h-screen items-center justify-center bg-black">
+      <div className="flex h-screen items-center justify-center bg-black">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
             <p className="text-sm text-zinc-500 animate-pulse">Loading Resume Viewer...</p>
           </div>
         </div>
-      </SidebarLayout>
-    );
+      );
   }
 
   return (
-    <SidebarLayout>
-      <div className="min-h-screen bg-black text-zinc-50 relative overflow-y-auto">
+    <div className="min-h-screen bg-black text-zinc-50 relative overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 md:px-12 py-6 md:py-10">
           
           {/* ─── Header ─── */}
@@ -144,6 +140,5 @@ export default function ResumeViewerPage() {
 
         </div>
       </div>
-    </SidebarLayout>
-  );
+    );
 }

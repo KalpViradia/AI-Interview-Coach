@@ -18,6 +18,7 @@ from app.models.schema import Resume, InterviewSession
 from app.core.auth import get_current_user, CurrentUser
 from app.tools.pdf_parser import extract_text_from_pdf
 from app.core.upload_utils import validate_uploaded_file, validate_extracted_text
+from app.core.cloudinary_utils import upload_file_to_cloudinary, delete_file_from_cloudinary
 
 from app.schemas.resume_studio_schemas import ResumeAnalysis, ATSCheckRequest
 from app.schemas.agent_schemas import ATSBreakdown
@@ -38,6 +39,7 @@ class ResumeResponse(BaseModel):
     last_used: str
     file_size: int
     interview_count: int
+    cloudinary_url: Optional[str] = None
 
 class ResumeDetailResponse(ResumeResponse):
     extracted_text: str
@@ -79,7 +81,8 @@ async def get_resumes(
             created_at=r.created_at.isoformat() if r.created_at else "",
             last_used=r.last_used.isoformat() if r.last_used else "",
             file_size=r.file_size or 0,
-            interview_count=len(r.sessions)
+            interview_count=len(r.sessions),
+            cloudinary_url=r.cloudinary_url
         ))
         
     return formatted
@@ -104,6 +107,11 @@ async def upload_resume(
             text = content.decode('utf-8', errors='ignore')
             
         validate_extracted_text(text)
+        
+        # Upload to Cloudinary (Phase 6)
+        cloud_result = await upload_file_to_cloudinary(content, filename)
+        cloudinary_url = cloud_result["secure_url"] if cloud_result else None
+        public_id = cloud_result["public_id"] if cloud_result else None
             
         new_resume = Resume(
             user_id=uuid.UUID(current_user.id),
@@ -112,7 +120,10 @@ async def upload_resume(
             raw_text=text,
             file_size=len(content),
             created_at=datetime.now(timezone.utc),
-            last_used=datetime.now(timezone.utc)
+            last_used=datetime.now(timezone.utc),
+            cloudinary_url=cloudinary_url,
+            public_id=public_id,
+            embedding_status="PENDING"
         )
         db.add(new_resume)
         await db.commit()
@@ -125,7 +136,8 @@ async def upload_resume(
             created_at=new_resume.created_at.isoformat(),
             last_used=new_resume.last_used.isoformat(),
             file_size=new_resume.file_size,
-            interview_count=0
+            interview_count=0,
+            cloudinary_url=new_resume.cloudinary_url
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
@@ -234,7 +246,8 @@ async def rename_resume(
         created_at=resume.created_at.isoformat() if resume.created_at else "",
         last_used=resume.last_used.isoformat() if resume.last_used else "",
         file_size=resume.file_size or 0,
-        interview_count=len(resume.sessions)
+        interview_count=len(resume.sessions),
+        cloudinary_url=resume.cloudinary_url
     )
 
 @router.delete("/resumes/{resume_id}")
@@ -254,6 +267,10 @@ async def delete_resume(
     
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
+        
+    # Delete from Cloudinary if exists
+    if resume.public_id:
+        await delete_file_from_cloudinary(resume.public_id)
         
     await db.delete(resume)
     await db.commit()

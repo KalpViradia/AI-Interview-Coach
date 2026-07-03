@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, CheckCircle, AlertCircle, ArrowRight, BrainCircuit, Mic, MicOff, Volume2, VolumeX, FastForward, Activity, LogOut, X, SkipForward } from "lucide-react";
 import { submitAnswer, getSessionState, getSessionTranscript, Question, Evaluation, SessionReport, TranscriptTurn, APIError } from "@/lib/api-client";
 import ReactMarkdown from "react-markdown";
-import SidebarLayout from "@/components/SidebarLayout";
 import { InterviewSkeleton } from "@/components/Skeletons";
 import { useDialog } from "@/components/ui/dialog/useDialog";
 import { PostAnswerReview } from "@/components/interview/PostAnswerReview";
@@ -151,7 +150,7 @@ function InterviewContent() {
           router.replace(`/report?session_id=${sessionId}`);
         } else if (state.next_question) {
           setQuestion(state.next_question);
-          setQuestionNumber(state.turn_count);
+          setQuestionNumber(Math.max(1, state.turn_count));
         } else {
           router.replace("/upload");
         }
@@ -166,32 +165,56 @@ function InterviewContent() {
     fetchData();
   }, [sessionId, router]);
 
-  // Handle workflow state & beforeunload
+  // Handle workflow state, beforeunload & SPA back button
   useEffect(() => {
     if (!loading && !isComplete && sessionId) {
       workflowState.isActive = true;
+      workflowState.isPaused = isPaused;
       
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         e.preventDefault();
         e.returnValue = "";
         return "";
       };
-      
       window.addEventListener("beforeunload", handleBeforeUnload);
       
-      // Update workflowState with paused flag for SidebarLayout
-      workflowState.isPaused = isPaused;
+      // SPA Back Button Trap
+      // Next.js App Router doesn't have route change events we can block,
+      // so we use history API directly.
+      window.history.pushState(null, "", window.location.href);
+      
+      const handlePopState = () => {
+        // We've popped the dummy state, so push it back immediately to stay on page
+        window.history.pushState(null, "", window.location.href);
+        
+        showConfirm({
+          title: "Interrupt Interview?",
+          message: "You currently have an interview in progress. Leaving now will end the session, and any unanswered questions will be lost. This action cannot be undone.",
+          confirmText: "Leave Interview",
+          cancelText: "Stay & Continue",
+          cancelVariant: "primary",
+          onConfirm: () => {
+            workflowState.isActive = false;
+            workflowState.isPaused = false;
+            window.removeEventListener("popstate", handlePopState);
+            router.back();
+          }
+        });
+      };
+      
+      window.addEventListener("popstate", handlePopState);
       
       return () => {
         workflowState.isActive = false;
         workflowState.isPaused = false;
         window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.removeEventListener("popstate", handlePopState);
       };
     } else {
       workflowState.isActive = false;
       workflowState.isPaused = false;
     }
-  }, [loading, isComplete, sessionId, isPaused]);
+  }, [loading, isComplete, sessionId, isPaused, showConfirm, router]);
 
   // Derived state for Live Score Panel
   const completedEvaluations = transcript.filter(t => t.evaluation).map(t => t.evaluation!);
@@ -305,49 +328,38 @@ function InterviewContent() {
 
   if (loading || !question) {
     return (
-      <SidebarLayout>
-        <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900">
-          {/* Skeleton LEFT SIDEBAR */}
-          <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">
-            <div className="flex-1">
-              <div className="h-3 w-32 bg-zinc-800 rounded mb-8 animate-pulse" />
-              <div className="space-y-6">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 opacity-50">
-                    <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 animate-pulse" />
-                    <div className="h-4 w-24 bg-zinc-900 rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
+      <div className="min-h-full bg-black flex flex-col w-full">
+        {/* Skeleton MIDDLE CANVAS */}
+        <div className="flex-1 flex flex-col w-full max-w-[1200px] mx-auto px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <div className="h-8 w-48 bg-zinc-800 rounded mb-2 animate-pulse" />
+              <div className="h-4 w-24 bg-zinc-900 rounded animate-pulse" />
             </div>
-            <div className="pt-8 mt-8 border-t border-zinc-900">
-              <div className="h-3 w-24 bg-zinc-800 rounded mb-4 animate-pulse" />
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl mb-6 h-16 animate-pulse" />
-              <div className="h-12 w-full rounded-xl bg-zinc-900 animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-20 bg-zinc-800 rounded-full animate-pulse" />
+              <div className="h-10 w-10 bg-zinc-800 rounded-full animate-pulse" />
             </div>
           </div>
+          
+          {/* Progress Card Skeleton */}
+          <div className="mb-7 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 animate-pulse h-16" />
+          
+          {/* Question Skeleton */}
+          <div className="mb-8">
+            <div className="h-4 w-32 bg-zinc-800 rounded mb-4 animate-pulse" />
+            <div className="h-6 w-full max-w-3xl bg-zinc-800 rounded mb-2 animate-pulse" />
+            <div className="h-6 w-full max-w-2xl bg-zinc-800 rounded animate-pulse" />
+          </div>
 
-          {/* Skeleton MIDDLE CANVAS */}
-          <div className="flex-1 flex flex-col p-6 lg:p-12 h-[calc(100vh-2rem)] overflow-y-auto w-full max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <div className="h-8 w-48 bg-zinc-800 rounded mb-2 animate-pulse" />
-                <div className="h-4 w-24 bg-zinc-900 rounded animate-pulse" />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-20 bg-zinc-800 rounded-full animate-pulse" />
-                <div className="h-10 w-10 bg-zinc-800 rounded-full animate-pulse" />
-              </div>
-            </div>
-            <div className="flex-1 flex flex-col min-h-[400px]">
-              <div className="flex flex-col flex-1">
-                <div className="flex-1 w-full rounded-2xl bg-zinc-900/30 border border-zinc-800/50 animate-pulse" />
-                <div className="mt-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 animate-pulse h-16" />
-              </div>
+          <div className="flex-1 flex flex-col min-h-[400px]">
+            <div className="flex flex-col flex-1">
+              <div className="flex-1 w-full rounded-2xl bg-zinc-900/30 border border-zinc-800/50 animate-pulse" />
+              <div className="mt-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 animate-pulse h-16" />
             </div>
           </div>
         </div>
-      </SidebarLayout>
+      </div>
     );
   }
 
@@ -360,84 +372,15 @@ function InterviewContent() {
   }[question.difficulty] || { color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20", label: "Medium" };
 
   return (
-    <SidebarLayout>
-      <div className="h-full min-h-screen bg-black flex flex-col xl:flex-row border-t border-zinc-900 relative">
-
-        {/* LEFT SIDEBAR: Progress */}
-        <div className="hidden xl:flex w-80 shrink-0 border-r border-zinc-900 bg-zinc-950/30 p-8 flex-col overflow-y-auto">
-          <div className="flex-1">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-8">Interview Progress</h3>
-            <div className="space-y-6">
-              {[...Array(10)].map((_, i) => {
-                const stepNum = i + 1;
-                const isPast = stepNum < questionNumber;
-                const isCurrent = stepNum === questionNumber;
-                return (
-                  <div key={i} className={`flex items-center gap-4 transition-colors duration-300 ${isCurrent ? 'opacity-100' : isPast ? 'opacity-60' : 'opacity-30'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border
-                      ${isPast ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
-                        isCurrent ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]' :
-                        'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>
-                      {isPast ? <CheckCircle className="w-4 h-4" /> : (isCurrent ? "●" : "○")}
-                    </div>
-                    <span className={`text-sm font-medium ${isCurrent ? 'text-indigo-400' : isPast ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                      Question {stepNum}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="pt-8 mt-8 border-t border-zinc-900">
-            <div className="mb-6 space-y-2">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-zinc-500">
-                <span>Progress</span>
-                <span>{questionsAnswered} / {totalQuestions}</span>
-              </div>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${(questionsAnswered / totalQuestions) * 100}%` }} />
-              </div>
-            </div>
-            
-            <div className="mb-6 flex justify-between items-center text-sm">
-              <span className="text-zinc-500 font-medium">Difficulty</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-bold border ${difficultyConfig.bg} ${difficultyConfig.color} ${difficultyConfig.border}`}>
-                {difficultyConfig.label}
-              </span>
-            </div>
-
-            <div className="mb-6 flex justify-between items-center text-sm">
-              <span className="text-zinc-500 font-medium">Est. Remaining</span>
-              <span className="text-zinc-300 font-medium">~{questionsRemaining * 2} min</span>
-            </div>
-
-            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4" /> Live Score
-            </h3>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-center mb-6">
-              <div className="flex items-end justify-center gap-1">
-                <span className="text-4xl font-black text-white">{currentScore}</span>
-                <span className="text-lg font-bold text-zinc-600 mb-1">/10</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleAction(handleEndInterviewClick)}
-              disabled={isAIThinking || loading}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/5 border border-red-500/10 text-red-400 py-3 text-sm font-bold transition-all disabled:opacity-50 ${status !== "idle" ? "opacity-50 cursor-not-allowed" : "hover:bg-red-500/10 active:scale-95"}`}
-            >
-              <LogOut className="w-4 h-4" /> End Interview
-            </button>
-          </div>
-        </div>
+    <>
+      <div className="min-h-full bg-black flex flex-col w-full">
 
         {/* MIDDLE CANVAS: Main Interview */}
-        <div className="flex-1 flex flex-col p-6 lg:p-12 h-[calc(100vh-2rem)] overflow-y-auto w-full max-w-7xl mx-auto">
+        <div className="flex-1 flex flex-col w-full max-w-[1200px] mx-auto px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="flex justify-between items-end mb-8">
+          <div className="flex justify-between items-end mb-6">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">AI Interview Coach</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">SkillMock</h1>
               <p className="text-sm text-zinc-400">Practice Mode</p>
               <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${difficultyConfig.bg} ${difficultyConfig.color} ${difficultyConfig.border} border`}>
                 Difficulty: {difficultyConfig.label}
@@ -466,11 +409,8 @@ function InterviewContent() {
             </div>
           </div>
 
-          <div className="flex justify-end w-full">
-          </div>
-
-          {/* Mobile Progress Bar (Visible only below xl) */}
-          <div className="xl:hidden mb-8 space-y-4">
+          {/* Progress Bar (Visible on all screens) */}
+          <div className="mb-7 space-y-4">
             <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 shadow-md">
               <div className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-400" />
@@ -481,17 +421,42 @@ function InterviewContent() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 -mx-1 w-[calc(100%+8px)]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {[...Array(10)].map((_, i) => {
                 const stepNum = i + 1;
                 const isPast = stepNum < questionNumber;
                 const isCurrent = stepNum === questionNumber;
+                
+                const turnData = transcript.find(t => t.order_index === stepNum);
+                let scoreText = "- / 10";
+                let statusClasses = "bg-zinc-900 border-zinc-800 text-zinc-500 opacity-40";
+                
+                if (isPast) {
+                  if (turnData?.answer === "[SKIPPED]" || turnData?.answer === "__SKIP__") {
+                    scoreText = "Skipped";
+                    statusClasses = "bg-zinc-800/50 border-zinc-700 text-zinc-400";
+                  } else if (turnData?.evaluation) {
+                    const score = turnData.evaluation.score;
+                    scoreText = `${score} / 10`;
+                    if (score >= 8) {
+                      statusClasses = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
+                    } else if (score >= 5) {
+                      statusClasses = "bg-amber-500/10 border-amber-500/30 text-amber-400";
+                    } else {
+                      statusClasses = "bg-red-500/10 border-red-500/30 text-red-400";
+                    }
+                  } else {
+                     statusClasses = "bg-zinc-800 border-zinc-700 text-zinc-400";
+                  }
+                } else if (isCurrent) {
+                  scoreText = "- / 10";
+                  statusClasses = "bg-indigo-500/10 border-indigo-500/40 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/50";
+                }
+
                 return (
-                  <div key={i} className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold border transition-all duration-300
-                    ${isPast ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
-                      isCurrent ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]' :
-                      'bg-zinc-900 border-zinc-800 text-zinc-500 opacity-40'}`}>
-                    {isPast ? <CheckCircle className="w-5 h-5" /> : stepNum}
+                  <div key={i} className={`flex-1 min-w-[70px] flex flex-col items-center justify-center py-2 rounded-xl border transition-all duration-300 ${statusClasses}`}>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest opacity-70 mb-0.5">Q{stepNum}</span>
+                    <span className="text-sm font-bold tracking-tight">{scoreText}</span>
                   </div>
                 );
               })}
@@ -499,7 +464,7 @@ function InterviewContent() {
           </div>
 
           {/* Question Area */}
-          <div className="mb-10">
+          <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-3 h-3 rounded-full ${isTtsEnabled || isAIThinking ? 'bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.6)]' : 'bg-zinc-700'}`} />
               <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wider">{question.topic}</span>
@@ -549,7 +514,7 @@ function InterviewContent() {
                   className="flex flex-col flex-1"
                 >
                   <div
-                    className={`flex-1 w-full relative ${status !== "idle" ? "opacity-50" : ""}`}
+                    className={`flex-1 flex flex-col w-full relative ${status !== "idle" ? "opacity-50" : ""}`}
                     onClick={() => {
                       if (status === "paused") setShowPausedModal(true);
                     }}
@@ -565,7 +530,7 @@ function InterviewContent() {
                         }
                       }}
                       placeholder="Type your answer here... (Ctrl+Enter to submit)"
-                      className="w-full h-full p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-zinc-200 focus:border-indigo-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500/50 transition-all outline-none resize-none placeholder:text-zinc-600 text-lg leading-relaxed shadow-inner disabled:cursor-not-allowed"
+                      className="flex-1 w-full p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-zinc-200 focus:border-indigo-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500/50 transition-all outline-none resize-none placeholder:text-zinc-600 text-lg leading-relaxed shadow-inner disabled:cursor-not-allowed"
                     />
                   </div>
                   {error && <p className="text-red-400 text-sm mt-3 px-2">{error}</p>}
@@ -659,7 +624,7 @@ function InterviewContent() {
           </motion.div>
         )}
       </AnimatePresence>
-    </SidebarLayout>
+    </>
   );
 }
 
@@ -670,3 +635,4 @@ export default function InterviewPage() {
     </Suspense>
   );
 }
+

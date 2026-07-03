@@ -6,14 +6,26 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, Plus, LogOut, BrainCircuit, History, LineChart as LineChartIcon, BarChart as BarChartIcon } from "lucide-react";
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  BarChart, Bar, Cell,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
-} from "recharts";
-import SidebarLayout from "@/components/SidebarLayout";
-import { FileText, Target, Award, Calendar, AlertTriangle, ArrowRight, Database, Users, Code, Lightbulb, ChevronRight, Infinity as InfinityIcon } from "lucide-react";
-import { getSessions } from "@/lib/api-client";
+import dynamic from 'next/dynamic';
+
+const LineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), { ssr: false });
+const Line = dynamic(() => import('recharts').then(mod => mod.Line), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false });
+const RechartsTooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
+const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false });
+const Cell = dynamic(() => import('recharts').then(mod => mod.Cell), { ssr: false });
+const RadarChart = dynamic(() => import('recharts').then(mod => mod.RadarChart), { ssr: false });
+const PolarGrid = dynamic(() => import('recharts').then(mod => mod.PolarGrid), { ssr: false });
+const PolarAngleAxis = dynamic(() => import('recharts').then(mod => mod.PolarAngleAxis), { ssr: false });
+const PolarRadiusAxis = dynamic(() => import('recharts').then(mod => mod.PolarRadiusAxis), { ssr: false });
+const Radar = dynamic(() => import('recharts').then(mod => mod.Radar), { ssr: false });
+
+import { FileText, Target, Award, Calendar, AlertTriangle, ArrowRight, Database, Users, Code, Lightbulb, ChevronRight, Infinity as InfinityIcon, Play, Folder } from "lucide-react";
+import { getSessions, getMyProfile, UserProfileResponse } from "@/lib/api-client";
 import DashboardSkeleton from "@/components/skeletons/DashboardSkeleton";
 import BackToTop from "@/components/ui/BackToTop";
 
@@ -21,6 +33,7 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [interviews, setInterviews] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"interviews" | "ats">("interviews");
 
@@ -28,10 +41,14 @@ export default function DashboardPage() {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
-      const fetchInterviews = async () => {
+      const fetchData = async () => {
         try {
-          const data = await getSessions();
-          setInterviews(data);
+          const [sessionsData, profileData] = await Promise.all([
+            getSessions(),
+            getMyProfile()
+          ]);
+          setInterviews(sessionsData);
+          setProfile(profileData);
         } catch (err) {
           console.error(err);
         } finally {
@@ -39,25 +56,41 @@ export default function DashboardPage() {
         }
       };
       
-      fetchInterviews();
+      fetchData();
     }
   }, [status, router]);
 
   if (status === "loading" || loading) {
     return (
-      <SidebarLayout>
-        <DashboardSkeleton />
-      </SidebarLayout>
-    );
+              <DashboardSkeleton />
+          );
   }
 
   // --- Analytics Data Prep ---
-  const mockInterviews = interviews.filter(i => ["mock_interview", "general", "resume_based", "job_specific"].includes(i.session_type));
-  const atsChecks = interviews.filter(i => i.session_type === "ats_check");
+  const allMockInterviews = interviews.filter(i => ["mock_interview", "general", "resume_based", "job_specific"].includes(i.session_type));
+  const allAtsChecks = interviews.filter(i => i.session_type === "ats_check");
+
+  // Filter ATS checks to only those that actually have data
+  const atsChecks = allAtsChecks.filter(i => (i.status || "").toLowerCase() === 'completed' || i.ats_breakdown?.overall_score > 0);
+
+  // Filter out abandoned/empty in-progress sessions (no report and no questions answered)
+  const mockInterviews = allMockInterviews.filter(i => {
+    const s = (i.status || "").toLowerCase();
+    // Keep completed sessions
+    if (s === "completed") return true;
+    // Keep genuinely active sessions
+    if (s === "in_progress" || s === "interview_active" || s === "submitting" || s === "generating_report") {
+      const age = Date.now() - new Date(i.started_at).getTime();
+      // Only keep in-progress sessions less than 24 hours old
+      return age < 24 * 60 * 60 * 1000;
+    }
+    // Hide CREATED, READY, FAILED, and old in-progress sessions
+    return false;
+  });
 
   // Only include completed mock interviews with a score > 0
   const completedInterviews = [...mockInterviews]
-    .filter(i => i.status === 'completed' && i.report && i.report.score > 0)
+    .filter(i => (i.status || "").toLowerCase() === 'completed' && i.report && i.report.score > 0)
     .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
 
   const scoreData = completedInterviews.map((i, idx) => ({
@@ -144,6 +177,15 @@ export default function DashboardPage() {
   const avgAtsScore = validAtsScores.length > 0 ? Math.round(validAtsScores.reduce((a, b) => a + b, 0) / validAtsScores.length) : 0;
   const bestAtsScore = validAtsScores.length > 0 ? Math.max(...validAtsScores) : 0;
 
+  const atsTrendData = [...atsChecks]
+    .filter(c => c.ats_breakdown?.overall_score > 0)
+    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+    .map((c, idx) => ({
+      name: `Check ${idx + 1}`,
+      date: new Date(c.started_at).toLocaleDateString(),
+      score: c.ats_breakdown.overall_score
+    }));
+
 // --- Custom Tooltips ---
 const TrendTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -172,7 +214,7 @@ const TopicTooltip = ({ active, payload, label }: any) => {
 // --- End Custom Tooltips ---
 
   return (
-    <SidebarLayout>
+    <>
       <div className="text-white p-6 sm:p-12">
         <div className="max-w-5xl mx-auto space-y-12">
           
@@ -185,10 +227,58 @@ const TopicTooltip = ({ active, payload, label }: any) => {
             
             <button
               onClick={() => router.push(activeTab === 'ats' ? "/upload?mode=ats" : "/upload")}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-indigo-500/20"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/20"
             >
               <Plus className="w-5 h-5" />
               {activeTab === 'ats' ? 'New ATS Check' : 'New Mock Interview'}
+            </button>
+          </div>
+
+          {/* Quick Actions & Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-8 border-b border-zinc-800">
+            {/* Quick Actions */}
+            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button onClick={() => router.push("/upload")} className="bg-indigo-600/10 border border-indigo-500/20 hover:bg-indigo-600/20 transition-all active:scale-95 p-4 rounded-3xl flex items-center gap-4 text-left group">
+                <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Play className="w-6 h-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white leading-tight">New Interview</h3>
+                  <p className="text-xs text-indigo-300 mt-1">Start a mock session</p>
+                </div>
+              </button>
+              
+              <button onClick={() => router.push("/upload?mode=ats")} className="bg-emerald-600/10 border border-emerald-500/20 hover:bg-emerald-600/20 transition-all active:scale-95 p-4 rounded-3xl flex items-center gap-4 text-left group">
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Target className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white leading-tight">ATS Check</h3>
+                  <p className="text-xs text-emerald-300 mt-1">Analyze a resume</p>
+                </div>
+              </button>
+
+              <button onClick={() => router.push("/resume-chat")} className="bg-purple-600/10 border border-purple-500/20 hover:bg-purple-600/20 transition-all active:scale-95 p-4 rounded-3xl flex items-center gap-4 text-left group">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <FileText className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white leading-tight">Resume Chat</h3>
+                  <p className="text-xs text-purple-300 mt-1">Ask questions via RAG</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Resume Vault Summary */}
+            <button onClick={() => router.push("/resumes")} className="md:col-span-1 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800/80 transition-all active:scale-95 p-4 rounded-3xl flex flex-col justify-center items-center text-center group">
+              <div className="flex items-center gap-2 mb-1">
+                <Folder className="w-5 h-5 text-zinc-400 group-hover:text-zinc-300 transition-colors" />
+                <span className="font-semibold text-zinc-300">Resume Vault</span>
+              </div>
+              <div className="flex items-end gap-1">
+                <span className="text-4xl font-black text-white">{profile?.resume_count || 0}</span>
+                <span className="text-sm font-medium text-zinc-500 mb-1.5">resumes</span>
+              </div>
             </button>
           </div>
 
@@ -523,44 +613,52 @@ const TopicTooltip = ({ active, payload, label }: any) => {
                     {mockInterviews.map((interview) => (
                       <div key={interview.id} className="bg-zinc-900/40 hover:bg-zinc-900/70 transition-colors border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between group">
                         <div>
-                          <div className="flex justify-between items-start mb-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${interview.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                              {interview.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS'}
-                            </span>
-                            <span className="text-zinc-500 text-xs font-medium">
-                              {new Date(interview.started_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {interview.report?.score > 0 && (
-                            <div className="mb-4">
-                              <span className="text-3xl font-black text-white">{interview.report.score}</span>
-                              <span className="text-zinc-500 font-medium">/10</span>
-                            </div>
-                          )}
-                          {interview.report?.readiness_label && (
-                            <h3 className="text-lg font-bold mb-2 text-indigo-300">{interview.report.readiness_label}</h3>
-                          )}
-                          {interview.report?.summary && (
-                            <p className="text-zinc-400 text-sm line-clamp-3 mb-4 leading-relaxed">
-                              {interview.report.summary}
-                            </p>
-                          )}
-                          
-                          {interview.status === 'in_progress' && (
-                            <div className="mt-4 flex flex-col items-start gap-4">
-                              <p className="text-zinc-400 text-sm leading-relaxed">
-                                This interview session is currently in progress. Resume to finish answering questions and get your evaluation.
-                              </p>
-                              <button
-                                onClick={() => router.push(`/interview?session_id=${interview.id}`)}
-                                className="bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/20 px-4 py-2 rounded-lg text-sm font-semibold transition-colors mt-auto"
-                              >
-                                Resume Interview
-                              </button>
-                            </div>
-                          )}
+                          {(() => {
+                            const s = (interview.status || "").toLowerCase();
+                            const isCompleted = s === "completed";
+                            return (
+                              <>
+                                <div className="flex justify-between items-start mb-4">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${isCompleted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                    {isCompleted ? 'COMPLETED' : 'IN PROGRESS'}
+                                  </span>
+                                  <span className="text-zinc-500 text-xs font-medium">
+                                    {new Date(interview.started_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {interview.report?.score > 0 && (
+                                  <div className="mb-4">
+                                    <span className="text-3xl font-black text-white">{interview.report.score}</span>
+                                    <span className="text-zinc-500 font-medium">/10</span>
+                                  </div>
+                                )}
+                                {interview.report?.readiness_label && (
+                                  <h3 className="text-lg font-bold mb-2 text-indigo-300">{interview.report.readiness_label}</h3>
+                                )}
+                                {interview.report?.summary && (
+                                  <p className="text-zinc-400 text-sm line-clamp-3 mb-4 leading-relaxed">
+                                    {interview.report.summary}
+                                  </p>
+                                )}
+                                
+                                {!isCompleted && (
+                                  <div className="mt-4 flex flex-col items-start gap-4">
+                                    <p className="text-zinc-400 text-sm leading-relaxed">
+                                      This interview session is currently in progress. Resume to finish answering questions and get your evaluation.
+                                    </p>
+                                    <button
+                                      onClick={() => router.push(`/interview?session_id=${interview.id}`)}
+                                      className="bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/20 px-4 py-2 rounded-lg text-sm font-semibold transition-colors mt-auto"
+                                    >
+                                      Resume Interview
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
 
-                          {interview.status === 'completed' && (
+                          {(interview.status || "").toLowerCase() === 'completed' && (
                             <div className="mt-4 flex flex-col xl:flex-row gap-2">
                               <button
                                 onClick={() => router.push(`/report?session_id=${interview.id}`)}
@@ -617,22 +715,67 @@ const TopicTooltip = ({ active, payload, label }: any) => {
               ) : (
                 <>
                   {/* Top Analytics */}
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 mb-8">
-                    <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                      <Award className="w-5 h-5 text-indigo-400" /> ATS Analytics
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-black/40 rounded-2xl border border-zinc-800 gap-2">
-                        <span className="text-zinc-400 font-medium">Total Analyses</span>
-                        <span className="text-3xl font-bold text-white">{atsChecks.length}</span>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    {/* Stats Overview */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 flex flex-col justify-center">
+                      <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                        <Award className="w-5 h-5 text-indigo-400" /> ATS Analytics
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-4 bg-black/40 rounded-2xl border border-zinc-800">
+                          <span className="text-zinc-400 font-medium">Total Analyses</span>
+                          <span className="text-3xl font-bold text-white">{atsChecks.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-4 bg-black/40 rounded-2xl border border-zinc-800">
+                          <span className="text-zinc-400 font-medium">Average Score</span>
+                          <span className="text-3xl font-bold text-indigo-400">{avgAtsScore}%</span>
+                        </div>
+                        <div className="flex justify-between items-center p-4 bg-black/40 rounded-2xl border border-zinc-800">
+                          <span className="text-zinc-400 font-medium">Best Score</span>
+                          <span className="text-3xl font-bold text-emerald-400">{bestAtsScore}%</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-black/40 rounded-2xl border border-zinc-800 gap-2">
-                        <span className="text-zinc-400 font-medium">Average Score</span>
-                        <span className="text-3xl font-bold text-indigo-400">{avgAtsScore}%</span>
+                    </div>
+
+                    {/* ATS Trend */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-3xl flex flex-col min-h-[300px]">
+                      <div className="mb-6">
+                        <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
+                          <LineChartIcon className="w-5 h-5 text-emerald-400" /> ATS Trend
+                        </h2>
+                        <p className="text-zinc-500 text-sm mt-1 ml-7">Your resume performance over time</p>
                       </div>
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-black/40 rounded-2xl border border-zinc-800 gap-2">
-                        <span className="text-zinc-400 font-medium">Best Score</span>
-                        <span className="text-3xl font-bold text-emerald-400">{bestAtsScore}%</span>
+                      <div className="flex-1 w-full flex flex-col min-h-0">
+                        {atsTrendData.length > 1 ? (
+                          <div className="w-full h-full flex-1 min-h-[150px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={atsTrendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
+                                <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis domain={[0, 100]} stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+                                <RechartsTooltip content={<TrendTooltip />} />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="score" 
+                                  stroke="#10b981" 
+                                  strokeWidth={3}
+                                  dot={{ r: 4, fill: '#18181b', strokeWidth: 2 }}
+                                  activeDot={{ r: 6, fill: '#10b981' }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : atsTrendData.length === 1 ? (
+                          <div className="h-full flex flex-col items-center justify-center">
+                            <span className="text-zinc-400 text-sm mb-2">First Score</span>
+                            <span className="text-6xl font-black text-emerald-400">{atsTrendData[0].score}%</span>
+                            <span className="text-zinc-500 text-sm mt-4 text-center">Do more checks to see your trend!</span>
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-zinc-500 text-sm">
+                            No ATS scores recorded yet.
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -656,7 +799,7 @@ const TopicTooltip = ({ active, payload, label }: any) => {
         </div>
       </div>
       <BackToTop />
-    </SidebarLayout>
+    </>
   );
 }
 
@@ -768,3 +911,4 @@ function AtsCard({ check, isFeatured, router, getScoreConfig }: { check: any, is
     </div>
   );
 }
+
