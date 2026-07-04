@@ -28,19 +28,21 @@ export default function RegisterPage() {
       await registerUser(name, email, password);
 
       // Automatically log in the user on success
-      const signInRes = await signIn("credentials", {
-        redirect: false,
+      const res = await signIn("credentials", {
         email,
         password,
+        redirect: false,
       });
-
-      if (signInRes?.error) {
-        throw new Error("Registration successful, but auto-login failed");
+      
+      if (res?.error) {
+        // Fallback if login fails after registration
+        router.push("/login");
+      } else {
+        const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/dashboard";
+        router.push(callbackUrl);
       }
-
-      router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,13 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center p-6">
       <button
         type="button"
-        onClick={() => router.back()}
+        onClick={() => {
+          if (window.history.length > 2) {
+            router.back();
+          } else {
+            router.push("/");
+          }
+        }}
         className="absolute top-6 left-6 flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

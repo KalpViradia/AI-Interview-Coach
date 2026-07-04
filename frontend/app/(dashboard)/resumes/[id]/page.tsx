@@ -21,8 +21,11 @@ export default function ResumeViewerPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated" && resumeId) {
+      router.replace("/login");
+      return;
+    }
+
+    if (status === "authenticated" && resumeId) {
       getResumeDetails(resumeId)
         .then(data => {
           setResume(data);

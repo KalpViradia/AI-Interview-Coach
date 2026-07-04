@@ -38,9 +38,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"interviews" | "ats">("interviews");
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated") {
+    if (status === "authenticated") {
       const fetchData = async () => {
         try {
           const [sessionsData, profileData] = await Promise.all([
@@ -57,6 +55,8 @@ export default function DashboardPage() {
       };
       
       fetchData();
+    } else if (status === "unauthenticated") {
+      router.replace("/login");
     }
   }, [status, router]);
 
@@ -322,8 +322,8 @@ const TopicTooltip = ({ active, payload, label }: any) => {
               <div className="flex-1 w-full flex flex-col" style={{ minWidth: 0, minHeight: 0 }}>
                 {scoreData.length > 1 ? (
                   <>
-                    <div className="w-full h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full h-[200px] min-h-[200px]">
+                      <ResponsiveContainer width="99%" height="100%">
                         <LineChart data={scoreData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
                           <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />

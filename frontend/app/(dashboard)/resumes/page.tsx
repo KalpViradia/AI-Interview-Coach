@@ -38,10 +38,10 @@ export default function ResumesPage() {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated") {
+    if (status === "authenticated") {
       fetchResumes();
+    } else if (status === "unauthenticated") {
+      router.replace("/login");
     }
   }, [status, router]);
 

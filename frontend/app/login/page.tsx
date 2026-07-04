@@ -29,7 +29,8 @@ export default function LoginPage() {
       setError("Invalid email or password");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/dashboard";
+      router.push(callbackUrl);
     }
   };
 
@@ -37,7 +38,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center p-6">
       <button
         type="button"
-        onClick={() => router.back()}
+        onClick={() => {
+          if (window.history.length > 2) {
+            router.back();
+          } else {
+            router.push("/");
+          }
+        }}
         className="absolute top-6 left-6 flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

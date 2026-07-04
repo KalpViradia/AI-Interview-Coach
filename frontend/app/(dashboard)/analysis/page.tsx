@@ -23,7 +23,7 @@ function AnalysisContent() {
 
   useEffect(() => {
     if (!sessionId) {
-      router.replace("/upload");
+      router.replace(isAtsMode ? "/ats/new" : "/interview/new");
       return;
     }
 
@@ -52,15 +52,15 @@ function AnalysisContent() {
             setSessionData(data);
             sessionStorage.setItem(`session_${sessionId}`, JSON.stringify(data));
           } else {
-            router.replace("/dashboard");
+            router.replace(isAuthenticated ? "/dashboard" : (isAtsMode ? "/ats/new" : "/interview/new"));
           }
         } catch (error) {
-          router.replace("/dashboard");
+          router.replace(isAuthenticated ? "/dashboard" : (isAtsMode ? "/ats/new" : "/interview/new"));
         }
       }
     };
     loadData();
-  }, [sessionId, router, isAtsMode]);
+  }, [sessionId, router, isAtsMode, isAuthenticated]);
 
   if (!sessionData || !sessionData.candidate_profile) {
     return (
@@ -274,11 +274,11 @@ function AnalysisContent() {
           >
             {isAtsMode ? (
               <button
-                onClick={() => router.push(isAuthenticated ? "/dashboard" : "/")}
+                onClick={() => router.push(isAuthenticated ? "/dashboard" : "/ats/new")}
                 className="flex items-center gap-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white px-6 py-2.5 text-sm font-semibold transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
               >
                 <Home className="w-4 h-4" />
-                {isAuthenticated ? "Back to Dashboard" : "Back to Home"}
+                {isAuthenticated ? "Back to Dashboard" : "Back to ATS Check"}
               </button>
             ) : (
               <button

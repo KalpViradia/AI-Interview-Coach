@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/Skeletons";
+import ResumeChatSkeleton from "@/components/skeletons/ResumeChatSkeleton";
 
 export default function ResumeChatLoading() {
-  return <DashboardSkeleton />;
+  return <ResumeChatSkeleton />;
 }

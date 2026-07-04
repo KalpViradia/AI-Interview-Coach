@@ -339,13 +339,15 @@ async def submit_answer(
             db.add(db_eval)
             
         if next_question:
-            turn_count = final_state.get("turn_count", 0)
+            # Use the DB sequence to guarantee 1, 2, 3 instead of skipping numbers
+            next_order = (last_db_question.order_index + 1) if last_db_question else 1
+            
             db_question = Question(
                 session_id=uuid.UUID(session_id),
                 text=next_question["text"],
                 topic=next_question["topic"],
                 difficulty=next_question["difficulty"],
-                order_index=turn_count + 1
+                order_index=next_order
             )
             db.add(db_question)
             
@@ -460,15 +462,14 @@ async def get_session_state(
     
     # Get state from LangGraph checkpointer
     current_state_tuple = await graph.aget_state(config)
-    if not current_state_tuple or not current_state_tuple.values:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    state = current_state_tuple.values
+    state = current_state_tuple.values if current_state_tuple else {}
     
     # If authenticated, verify ownership and get DB report fallback
     session_type = "mock_interview"
     session_status = None
     db_report_dict = None
+    db_session = None
+    
     if current_user:
         session_result = await db.execute(
             select(InterviewSession).where(
@@ -498,6 +499,9 @@ async def get_session_state(
     if not session_status:
         if final_report is not None:
             session_status = "COMPLETED"
+        elif not state.get("next_question") and not db_session:
+            # If no state and no DB session, it really is a 404
+            raise HTTPException(status_code=404, detail="Session not found")
         elif not state.get("next_question"):
             session_status = "FAILED"
         elif state.get("turn_count", 0) > 0:

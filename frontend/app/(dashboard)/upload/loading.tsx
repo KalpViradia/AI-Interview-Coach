@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/Skeletons";
+import UploadSkeleton from "@/components/skeletons/UploadSkeleton";
 
 export default function UploadLoading() {
-  return <DashboardSkeleton />;
+  return <UploadSkeleton />;
 }

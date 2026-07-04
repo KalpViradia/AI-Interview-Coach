@@ -114,7 +114,7 @@ function TranscriptContent() {
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-4">
                   <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full text-xs font-semibold uppercase tracking-wider">
-                    Question {turn.order_index}
+                    Question {index + 1}
                   </span>
                   <span className="px-3 py-1 bg-zinc-800 text-zinc-300 rounded-full text-xs font-medium">
                     {turn.topic}

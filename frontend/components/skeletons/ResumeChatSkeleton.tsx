@@ -1,55 +1,34 @@
 import React from "react";
+import Shimmer from "../ui/Shimmer";
 
 export default function ResumeChatSkeleton() {
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen p-6 md:p-12 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
-      <div className="flex-none mb-6 space-y-2">
-        <div className="h-8 w-48 bg-zinc-800 rounded-lg animate-pulse"></div>
-        <div className="h-4 w-96 bg-zinc-800/50 rounded-lg animate-pulse"></div>
+    <div className="flex flex-col p-6 md:p-12 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
+      
+      {/* Header Skeleton */}
+      <div className="mb-12 text-center flex flex-col items-center">
+        <Shimmer className="w-16 h-16 rounded-2xl mb-6" />
+        <Shimmer className="h-10 w-64 mb-4" />
+        <Shimmer className="h-5 w-full max-w-xl" />
       </div>
 
-      <div className="flex-1 flex flex-col bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl animate-pulse">
-        {/* Chat Header Skeleton */}
-        <div className="px-6 py-4 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-800 rounded-full"></div>
-            <div className="space-y-2">
-              <div className="h-4 w-32 bg-zinc-800 rounded-md"></div>
-              <div className="h-3 w-16 bg-zinc-800/50 rounded-md"></div>
-            </div>
+      {/* Main Content Area (Upload Form matching resume-chat initial state) */}
+      <div className="max-w-2xl mx-auto w-full bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 shadow-2xl">
+        <div className="space-y-6">
+          <div className="flex gap-4">
+            <Shimmer className="h-9 w-32 rounded-xl" />
+            <Shimmer className="h-9 w-32 rounded-xl" />
           </div>
-          <div className="h-4 w-20 bg-zinc-800 rounded-md"></div>
-        </div>
-
-        {/* Chat Area Skeleton */}
-        <div className="flex-1 p-6 space-y-6 overflow-hidden">
-          {/* Assistant Msg */}
-          <div className="flex justify-start">
-            <div className="flex gap-4 max-w-[80%]">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex-shrink-0"></div>
-              <div className="rounded-2xl p-5 bg-zinc-800/50 rounded-tl-none w-64 h-24"></div>
-            </div>
+          
+          <div className="w-full h-64 rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50 flex flex-col items-center justify-center p-6 gap-4">
+            <Shimmer className="w-12 h-12 rounded-full" />
+            <Shimmer className="h-5 w-48" />
+            <Shimmer className="h-4 w-64" />
+            <Shimmer className="h-10 w-32 rounded-xl mt-4" />
           </div>
-          {/* User Msg */}
-          <div className="flex justify-end">
-            <div className="flex gap-4 max-w-[80%] flex-row-reverse">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex-shrink-0"></div>
-              <div className="rounded-2xl p-5 bg-zinc-800 rounded-tr-none w-48 h-16"></div>
-            </div>
-          </div>
-          {/* Assistant Msg */}
-          <div className="flex justify-start">
-            <div className="flex gap-4 max-w-[80%]">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex-shrink-0"></div>
-              <div className="rounded-2xl p-5 bg-zinc-800/50 rounded-tl-none w-80 h-32"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Input Area Skeleton */}
-        <div className="p-4 bg-zinc-900 border-t border-zinc-800">
-          <div className="w-full h-[58px] bg-zinc-950 border border-zinc-800 rounded-xl relative">
-            <div className="absolute right-2 top-2 bottom-2 w-10 bg-zinc-800 rounded-lg"></div>
+          
+          <div className="flex justify-end pt-4 border-t border-zinc-800/50">
+            <Shimmer className="h-12 w-48 rounded-xl" />
           </div>
         </div>
       </div>

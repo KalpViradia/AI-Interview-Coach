@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
   Trophy, Target, Map, ArrowRight, Loader2, 
-  BarChart, AlertTriangle, RefreshCcw, Home, CheckCircle, Sparkles, UserPlus
+  BarChart, AlertTriangle, RefreshCcw, Home, CheckCircle, BookmarkCheck, UserPlus
 } from "lucide-react";
 import { SessionReport, getSessionTranscript, getSessionState, TranscriptTurn } from "@/lib/api-client";
 import Link from "next/link";
@@ -19,15 +19,20 @@ function ReportContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { status } = useSession();
+  const isAuthLoading = status === "loading";
   const isGuest = status === "unauthenticated";
+  const backHref = isGuest ? "/interview/new" : "/dashboard";
+  const backText = isGuest ? "Back to Interview Setup" : "Back to Dashboard";
 
   const [report, setReport] = useState<SessionReport | null>(null);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
     if (!sessionId) {
-      router.replace("/");
+      router.replace(isGuest ? "/interview/new" : "/dashboard");
       return;
     }
 
@@ -51,7 +56,7 @@ function ReportContent() {
             if (!sessionState.is_complete) {
               router.replace(`/interview?session_id=${sessionId}`);
             } else {
-              router.replace("/dashboard");
+              router.replace(backHref);
             }
             return;
           }
@@ -61,16 +66,16 @@ function ReportContent() {
         setTranscript(data);
       } catch (err) {
         console.error("Failed to fetch report data:", err);
-        router.replace(isGuest ? "/" : "/dashboard");
+        router.replace(backHref);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [sessionId, router]);
+  }, [sessionId, router, isAuthLoading, isGuest, backHref]);
 
-  if (isLoading || !report) {
+  if (isAuthLoading || isLoading || !report) {
     return (
               <ReportSkeleton />
           );
@@ -108,8 +113,8 @@ function ReportContent() {
           <PageHeader 
             title="Interview Report"
             subtitle="Overall interview performance and personalized feedback."
-            backHref="/dashboard"
-            backText="Back"
+            backHref={backHref}
+            backText={backText}
           />
           
           {/* ── READINESS BADGE ── */}
@@ -295,7 +300,7 @@ function ReportContent() {
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
               <div className="relative z-10">
                 <div className="w-14 h-14 mx-auto bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-5 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
-                  <Sparkles className="w-7 h-7 text-indigo-400" />
+                  <BookmarkCheck className="w-7 h-7 text-indigo-400" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">Save Your Progress</h3>
                 <p className="text-zinc-400 max-w-md mx-auto mb-6 leading-relaxed">
@@ -336,7 +341,7 @@ function ReportContent() {
               </Link>
             )}
             <Link
-              href="/upload"
+              href="/interview/new"
               className="group flex items-center gap-2 rounded-2xl bg-white text-black px-8 py-4 text-sm font-black transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
               Start New Interview
@@ -356,4 +361,3 @@ export default function ReportPage() {
     </Suspense>
   );
 }
-

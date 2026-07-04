@@ -11,15 +11,9 @@ export default function Home() {
   const { status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/dashboard");
-    }
-  }, [status, router]);
-
   const handleStart = () => {
     if (status === "authenticated") {
-      router.push("/upload");
+      router.push("/interview/new");
     } else {
       router.push("/login");
     }
@@ -86,10 +80,10 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {status === "authenticated" ? (
               <button
-                onClick={() => router.push("/upload")}
+                onClick={() => router.push("/dashboard")}
                 className="group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-black shadow-sm transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95"
               >
-                Start Interview
+                Go to Dashboard
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             ) : (
@@ -102,7 +96,7 @@ export default function Home() {
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </button>
                 <button
-                  onClick={() => router.push("/upload")}
+                  onClick={() => router.push("/interview/new")}
                   className="group relative inline-flex items-center gap-2 rounded-full bg-zinc-800 border border-zinc-700 px-8 py-3.5 text-sm font-semibold text-zinc-300 shadow-sm transition-all hover:bg-zinc-700 hover:scale-105 active:scale-95"
                 >
                   Continue as Guest

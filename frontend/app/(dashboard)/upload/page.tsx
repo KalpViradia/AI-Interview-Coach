@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Briefcase, Loader2, ArrowRight, UploadCloud, CheckCircle2, User, Target, FileSearch } from "lucide-react";
 import { uploadDocument, getResumes, ResumeResponse, managedFetch, APIError } from "@/lib/api-client";
@@ -16,11 +16,12 @@ type InterviewType = "general" | "resume_based" | "job_specific" | "ats_check";
 
 function UploadContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const { showPrompt, showConfirm } = useDialog();
   
-  const isAtsMode = searchParams.get("mode") === "ats";
+  const isAtsMode = pathname.startsWith("/ats") || searchParams.get("mode") === "ats";
   
   const [interviewType, setInterviewType] = useState<InterviewType>(isAtsMode ? "ats_check" : "general");
   const [resumeSource, setResumeSource] = useState<"vault" | "upload">("upload");
@@ -279,7 +280,7 @@ function UploadContent() {
           >
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-4">
-                {isAtsMode ? "ATS Resume Check" : "Start New Session"}
+                {isAtsMode ? "ATS Resume Check" : "Start New Interview"}
               </h1>
               <p className="text-zinc-400 max-w-2xl mx-auto">
                 {isAtsMode 

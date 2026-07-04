@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/Skeletons";
+import ReportSkeleton from "@/components/skeletons/ReportSkeleton";
 
 export default function ReportLoading() {
-  return <DashboardSkeleton />;
+  return <ReportSkeleton />;
 }

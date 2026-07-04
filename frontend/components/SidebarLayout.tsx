@@ -84,10 +84,10 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
 
   const getWorkflowContext = () => {
     const isOnInterview = pathname.startsWith("/interview");
-    const isOnUpload = pathname.startsWith("/upload");
+    const isOnSetup = pathname.startsWith("/upload") || pathname === "/interview/new" || pathname.startsWith("/ats");
     const isOnAnalysis = pathname.startsWith("/analysis");
 
-    if (isOnInterview) {
+    if (isOnInterview && pathname !== "/interview/new") {
       return {
         title: "Interrupt Interview?",
         message: "You currently have an interview in progress. Leaving now will end the session, and any unanswered questions will be lost. This action cannot be undone.",
@@ -95,7 +95,7 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
         cancelText: "Stay & Continue",
       };
     }
-    if (isOnUpload) {
+    if (isOnSetup) {
       return {
         title: "Cancel Processing?",
         message: "Your session is currently being prepared. Leaving now will cancel the ongoing analysis and you will need to start over.",
@@ -169,13 +169,13 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
     ? [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "My Resumes", href: "/resumes", icon: Library },
-      { name: "New Session", href: "/upload", icon: PlusCircle },
-      { name: "ATS Check", href: "/upload?mode=ats", icon: Target },
+      { name: "New Interview", href: "/interview/new", icon: PlusCircle },
+      { name: "ATS Check", href: "/ats/new", icon: Target },
       { name: "Resume Chat", href: "/resume-chat", icon: FileText },
     ]
     : [
-      { name: "New Session", href: "/upload", icon: PlusCircle },
-      { name: "ATS Check", href: "/upload?mode=ats", icon: Target },
+      { name: "New Interview", href: "/interview/new", icon: PlusCircle },
+      { name: "ATS Check", href: "/ats/new", icon: Target },
       { name: "Resume Chat", href: "/resume-chat", icon: FileText },
     ];
 
@@ -197,13 +197,12 @@ function SidebarLayoutInner({ children }: SidebarLayoutProps) {
           {navLinks.map((link) => {
             let isActive = pathname.startsWith(link.href.split("?")[0]);
 
-            if (pathname === "/upload") {
+            if (link.href === "/interview/new") {
               const mode = searchParams.get("mode");
-              if (mode === "ats") {
-                isActive = link.href === "/upload?mode=ats";
-              } else {
-                isActive = link.href === "/upload";
-              }
+              isActive = pathname === "/interview/new" || (pathname === "/upload" && mode !== "ats");
+            } else if (link.href === "/ats/new") {
+              const mode = searchParams.get("mode");
+              isActive = pathname.startsWith("/ats") || (pathname === "/upload" && mode === "ats");
             }
 
             const Icon = link.icon;
